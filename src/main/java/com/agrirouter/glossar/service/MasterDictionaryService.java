@@ -7,7 +7,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -22,10 +24,10 @@ public class MasterDictionaryService {
      * Loads entries from the master dictionary Excel file.
      *
      * @param targetLanguageCode The language code to load entries for.
-     * @return A map of identifier to DictionaryEntry.
+     * @return A map of term/identifier to list of DictionaryEntry.
      */
-    public Map<String, DictionaryEntry> load(String targetLanguageCode) {
-        Map<String, DictionaryEntry> dictionary = new HashMap<>();
+    public Map<String, List<DictionaryEntry>> load(String targetLanguageCode) {
+        Map<String, List<DictionaryEntry>> dictionary = new HashMap<>();
         logger.info("Loading master dictionary for language: {}", targetLanguageCode);
 
         try (InputStream inputStream = getClass().getResourceAsStream(FILE_PATH)) {
@@ -66,7 +68,11 @@ public class MasterDictionaryService {
                     String targetLanguage = targetLangCol != -1 ? getCellValueAsString(row.getCell(targetLangCol)) : "";
 
                     if (identifier != null && !identifier.isEmpty()) {
-                        dictionary.put(identifier, new DictionaryEntry(identifier, german, targetLanguage));
+                        DictionaryEntry entry = new DictionaryEntry(identifier, german, targetLanguage);
+                        dictionary.computeIfAbsent(identifier, k -> new ArrayList<>()).add(entry);
+                        if (german != null && !german.isEmpty() && !german.equals(identifier)) {
+                            dictionary.computeIfAbsent(german, k -> new ArrayList<>()).add(entry);
+                        }
                     }
                 }
             }
