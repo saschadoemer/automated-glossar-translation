@@ -1,4 +1,4 @@
-package com.agrirouter.glossar.model;
+package de.knipex.glossar.model;
 
 import java.util.Objects;
 

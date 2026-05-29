@@ -1,4 +1,4 @@
-package com.agrirouter.glossar.service;
+package de.knipex.glossar.service;
 
 import dev.langchain4j.model.openai.OpenAiChatModel;
 

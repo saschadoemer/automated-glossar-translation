@@ -1,7 +1,7 @@
-package com.agrirouter.glossar.service;
+package de.knipex.glossar.service;
 
-import com.agrirouter.glossar.model.DictionaryEntry;
-import com.agrirouter.glossar.model.TranslationResult;
+import de.knipex.glossar.model.DictionaryEntry;
+import de.knipex.glossar.model.TranslationResult;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.model.input.Prompt;

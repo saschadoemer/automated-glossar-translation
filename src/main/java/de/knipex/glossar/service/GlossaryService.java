@@ -1,5 +1,6 @@
-package com.agrirouter.glossar.service;
+package de.knipex.glossar.service;
 
+import de.knipex.glossar.model.TranslationResult;
 import org.apache.commons.csv.CSVRecord;
 
 /**
@@ -10,6 +11,7 @@ public interface GlossaryService {
      * Process a single CSV record.
      *
      * @param record The record to process.
+     * @return The translation result.
      */
-    void process(CSVRecord record);
+    TranslationResult process(CSVRecord record);
 }

@@ -1,6 +1,6 @@
-package com.agrirouter.glossar.service;
+package de.knipex.glossar.service;
 
-import com.agrirouter.glossar.model.DictionaryEntry;
+import de.knipex.glossar.model.DictionaryEntry;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.slf4j.Logger;

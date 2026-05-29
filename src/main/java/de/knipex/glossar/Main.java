@@ -1,7 +1,8 @@
-package com.agrirouter.glossar;
+package de.knipex.glossar;
 
-import com.agrirouter.glossar.model.DictionaryEntry;
-import com.agrirouter.glossar.service.*;
+import de.knipex.glossar.model.DictionaryEntry;
+import de.knipex.glossar.model.TranslationResult;
+import de.knipex.glossar.service.*;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.slf4j.Logger;
@@ -9,6 +10,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -16,16 +18,18 @@ public class Main {
 
     private static final Logger logger = LoggerFactory.getLogger(Main.class);
     private static final String GLOSSAR_DATA_FILE = "/glossar-master-data.csv";
+    private static final String OUTPUT_FILE = "glossary-translation-results.xlsx";
 
     public static void main(String[] args) {
         if (args.length < 1) {
-            logger.error("Usage: java -jar ... <target-language-code> [--fuzzy] [--llm <openai|gemini>] [--threshold <number>]");
+            logger.error("Usage: java -jar ... <target-language-code> [--fuzzy] [--llm <openai|gemini>] [--threshold <number>] [--waitTime <seconds>]");
             System.exit(1);
         }
         String targetLanguage = args[0];
         boolean fuzzy = false;
         String llmType = "gemini";
-        int threshold = 5; // Default threshold for testing
+        Integer threshold = null; // No default threshold, process whole file if not provided
+        int waitTime = 3; // Default wait time in seconds
         for (int i = 0; i < args.length; i++) {
             if ("--fuzzy".equalsIgnoreCase(args[i])) {
                 fuzzy = true;
@@ -41,13 +45,21 @@ public class Main {
                     System.exit(1);
                 }
             }
+            if ("--waitTime".equalsIgnoreCase(args[i]) && i + 1 < args.length) {
+                try {
+                    waitTime = Integer.parseInt(args[i + 1]);
+                } catch (NumberFormatException e) {
+                    logger.error("Invalid waitTime value: {}", args[i + 1]);
+                    System.exit(1);
+                }
+            }
         }
-        new Main().run(targetLanguage, fuzzy, llmType, threshold);
+        new Main().run(targetLanguage, fuzzy, llmType, threshold, waitTime);
     }
 
-    public void run(String targetLanguage, boolean fuzzy, String llmType, Integer threshold) {
-        logger.info("Starting glossary data processing for language: {} (fuzzy: {}, llm: {}, threshold: {})",
-                targetLanguage, fuzzy, llmType, threshold != null ? threshold : "none");
+    public void run(String targetLanguage, boolean fuzzy, String llmType, Integer threshold, int waitTime) {
+        logger.info("Starting glossary data processing for language: {} (fuzzy: {}, llm: {}, threshold: {}, waitTime: {}s)",
+                targetLanguage, fuzzy, llmType, threshold != null ? threshold : "none", waitTime);
 
         LlmService llmService;
         if ("gemini".equals(llmType)) {
@@ -72,6 +84,7 @@ public class Main {
         Map<String, List<DictionaryEntry>> dictionary = masterDictionaryService.load(targetLanguage);
 
         GlossaryService glossaryService = new GlossaryServiceImpl(targetLanguage, dictionary, fuzzy, llmService);
+        List<TranslationResult> results = new ArrayList<>();
 
         try (var inputStream = getClass().getResourceAsStream(GLOSSAR_DATA_FILE)) {
             if (inputStream == null) {
@@ -87,12 +100,33 @@ public class Main {
                         logger.info("Threshold reached ({} entries). Stopping.", threshold);
                         break;
                     }
-                    glossaryService.process(csvRecord);
+
+                    if (count > 0 && waitTime > 0) {
+                        try {
+                            logger.debug("Waiting for {} seconds before next entry...", waitTime);
+                            Thread.sleep(waitTime * 1000L);
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                            logger.warn("Wait time interrupted", e);
+                        }
+                    }
+
+                    TranslationResult result = glossaryService.process(csvRecord);
+                    if (result != null) {
+                        results.add(result);
+                    }
                     count++;
                 }
             }
         } catch (Exception e) {
             logger.error("Error during glossary processing", e);
+        }
+
+        if (!results.isEmpty()) {
+            ExportService exportService = new ExportService();
+            exportService.exportToExcel(results, OUTPUT_FILE);
+        } else {
+            logger.warn("No results to export.");
         }
 
         logger.info("Glossary data processing finished.");

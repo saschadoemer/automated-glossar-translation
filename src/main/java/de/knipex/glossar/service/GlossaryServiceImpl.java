@@ -1,8 +1,7 @@
-package com.agrirouter.glossar.service;
+package de.knipex.glossar.service;
 
-import com.agrirouter.glossar.model.DictionaryEntry;
-import com.agrirouter.glossar.model.GlossaryContext;
-import com.agrirouter.glossar.model.TranslationResult;
+import de.knipex.glossar.model.DictionaryEntry;
+import de.knipex.glossar.model.TranslationResult;
 import org.apache.commons.csv.CSVRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,7 +29,7 @@ public class GlossaryServiceImpl implements GlossaryService {
     }
 
     @Override
-    public void process(CSVRecord record) {
+    public TranslationResult process(CSVRecord record) {
         if (record.size() > 0) {
             String entry = record.get(0);
             logger.debug("[{}] Processing entry: {}", targetLanguage, entry);
@@ -52,7 +51,9 @@ public class GlossaryServiceImpl implements GlossaryService {
             System.out.println("--------------------------------------------------");
             System.out.print(result.toString());
             System.out.println("--------------------------------------------------");
+            return result;
         }
+        return null;
     }
 
     private List<DictionaryEntry> findFuzzyMatches(String entry) {

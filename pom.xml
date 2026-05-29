@@ -77,7 +77,7 @@
                         <configuration>
                             <transformers>
                                 <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                                    <mainClass>com.agrirouter.glossar.Main</mainClass>
+                                    <mainClass>de.knipex.glossar.Main</mainClass>
                                 </transformer>
                             </transformers>
                         </configuration>
