@@ -19,12 +19,13 @@ public class Main {
 
     public static void main(String[] args) {
         if (args.length < 1) {
-            logger.error("Usage: java -jar ... <target-language-code> [--fuzzy] [--llm <openai|gemini>]");
+            logger.error("Usage: java -jar ... <target-language-code> [--fuzzy] [--llm <openai|gemini>] [--threshold <number>]");
             System.exit(1);
         }
         String targetLanguage = args[0];
         boolean fuzzy = false;
-        String llmType = "openai";
+        String llmType = "gemini";
+        int threshold = 5; // Default threshold for testing
         for (int i = 0; i < args.length; i++) {
             if ("--fuzzy".equalsIgnoreCase(args[i])) {
                 fuzzy = true;
@@ -32,12 +33,21 @@ public class Main {
             if ("--llm".equalsIgnoreCase(args[i]) && i + 1 < args.length) {
                 llmType = args[i + 1].toLowerCase();
             }
+            if ("--threshold".equalsIgnoreCase(args[i]) && i + 1 < args.length) {
+                try {
+                    threshold = Integer.parseInt(args[i + 1]);
+                } catch (NumberFormatException e) {
+                    logger.error("Invalid threshold value: {}", args[i + 1]);
+                    System.exit(1);
+                }
+            }
         }
-        new Main().run(targetLanguage, fuzzy, llmType);
+        new Main().run(targetLanguage, fuzzy, llmType, threshold);
     }
 
-    public void run(String targetLanguage, boolean fuzzy, String llmType) {
-        logger.info("Starting glossary data processing for language: {} (fuzzy: {}, llm: {})", targetLanguage, fuzzy, llmType);
+    public void run(String targetLanguage, boolean fuzzy, String llmType, Integer threshold) {
+        logger.info("Starting glossary data processing for language: {} (fuzzy: {}, llm: {}, threshold: {})",
+                targetLanguage, fuzzy, llmType, threshold != null ? threshold : "none");
 
         LlmService llmService;
         if ("gemini".equals(llmType)) {
@@ -71,8 +81,14 @@ public class Main {
 
             try (var reader = new InputStreamReader(inputStream, StandardCharsets.UTF_8);
                  var csvParser = new CSVParser(reader, CSVFormat.DEFAULT)) {
+                int count = 0;
                 for (var csvRecord : csvParser) {
+                    if (threshold != null && count >= threshold) {
+                        logger.info("Threshold reached ({} entries). Stopping.", threshold);
+                        break;
+                    }
                     glossaryService.process(csvRecord);
+                    count++;
                 }
             }
         } catch (Exception e) {

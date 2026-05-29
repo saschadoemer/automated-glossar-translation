@@ -10,7 +10,12 @@ public class OpenAiLlmService extends AbstractLlmService {
     public OpenAiLlmService(String apiKey) {
         super(OpenAiChatModel.builder()
                 .apiKey(apiKey)
-                .modelName("gpt-4o") // Defaulting to a strong model
+                .modelName(getModelName())
                 .build());
+    }
+
+    private static String getModelName() {
+        String modelName = System.getenv("OPENAI_MODEL_NAME");
+        return (modelName == null || modelName.isBlank()) ? "gpt-4o" : modelName;
     }
 }

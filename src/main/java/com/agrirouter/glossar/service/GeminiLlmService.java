@@ -11,7 +11,12 @@ public class GeminiLlmService extends AbstractLlmService {
     public GeminiLlmService(String apiKey) {
         super(GoogleAiGeminiChatModel.builder()
                 .apiKey(apiKey)
-                .modelName("gemini-1.5-pro") // Defaulting to a strong model
+                .modelName(getModelName())
                 .build());
+    }
+
+    private static String getModelName() {
+        String modelName = System.getenv("GEMINI_MODEL_NAME");
+        return (modelName == null || modelName.isBlank()) ? "gemini-1.5-pro" : modelName;
     }
 }
