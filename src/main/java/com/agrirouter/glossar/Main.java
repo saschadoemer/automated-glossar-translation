@@ -1,6 +1,8 @@
 package com.agrirouter.glossar;
 
+import com.agrirouter.glossar.model.DictionaryEntry;
 import com.agrirouter.glossar.service.GlossaryService;
+import com.agrirouter.glossar.service.MasterDictionaryService;
 import com.agrirouter.glossar.service.SpanishGlossaryService;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
@@ -9,6 +11,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.util.Map;
 
 public class Main {
 
@@ -27,9 +30,12 @@ public class Main {
     public void run(String targetLanguage) {
         logger.info("Starting glossary data processing for language: {}", targetLanguage);
 
+        MasterDictionaryService masterDictionaryService = new MasterDictionaryService();
+        Map<String, DictionaryEntry> dictionary = masterDictionaryService.load(targetLanguage);
+
         GlossaryService glossaryService;
         if ("es-ES".equalsIgnoreCase(targetLanguage)) {
-            glossaryService = new SpanishGlossaryService();
+            glossaryService = new SpanishGlossaryService(dictionary);
         } else {
             logger.error("Unsupported language: {}", targetLanguage);
             return;
