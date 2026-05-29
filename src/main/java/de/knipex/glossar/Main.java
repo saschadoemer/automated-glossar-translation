@@ -123,6 +123,17 @@ public class Main {
         }
 
         if (!results.isEmpty()) {
+            double totalCost = 0;
+            long totalDuration = 0;
+            for (TranslationResult res : results) {
+                if (res.getCost() != null) totalCost += res.getCost();
+                if (res.getDurationMs() != null) totalDuration += res.getDurationMs();
+            }
+            logger.info("Summary for the whole process:");
+            logger.info("- Total entries processed: {}", results.size());
+            logger.info("- Total cost (rough): ${}", String.format("%.6f", totalCost));
+            logger.info("- Total duration (LLM calls): {}ms ({}s)", totalDuration, totalDuration / 1000.0);
+
             ExportService exportService = new ExportService();
             exportService.exportToExcel(results, OUTPUT_FILE);
         } else {

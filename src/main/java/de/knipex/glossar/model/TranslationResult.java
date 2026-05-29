@@ -12,6 +12,8 @@ public class TranslationResult {
     private String translationWithoutContext;
     private List<String> synonyms;
     private String comments;
+    private Double cost;
+    private Long durationMs;
 
     public String getContent() {
         return content;
@@ -61,6 +63,22 @@ public class TranslationResult {
         this.comments = comments;
     }
 
+    public Double getCost() {
+        return cost;
+    }
+
+    public void setCost(Double cost) {
+        this.cost = cost;
+    }
+
+    public Long getDurationMs() {
+        return durationMs;
+    }
+
+    public void setDurationMs(Long durationMs) {
+        this.durationMs = durationMs;
+    }
+
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
@@ -72,6 +90,8 @@ public class TranslationResult {
         sb.append("4) Translation (without context): ").append(translationWithoutContext).append("\n");
         sb.append("5) Synonyms: ").append(synonyms != null ? String.join(", ", synonyms) : "none").append("\n");
         sb.append("6) Comments: ").append(comments).append("\n");
+        sb.append("7) Cost: ").append(cost != null ? String.format("%.6f", cost) : "unknown").append("\n");
+        sb.append("8) Duration: ").append(durationMs != null ? durationMs + "ms" : "unknown").append("\n");
         return sb.toString();
     }
 }

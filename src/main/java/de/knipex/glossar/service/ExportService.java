@@ -36,7 +36,9 @@ public class ExportService {
                     "Confidence",
                     "Translation without Context",
                     "Synonyms",
-                    "Comments"
+                    "Comments",
+                    "Cost",
+                    "Duration (ms)"
             };
 
             CellStyle headerStyle = workbook.createCellStyle();
@@ -63,6 +65,12 @@ public class ExportService {
                 row.createCell(3).setCellValue(safeString(result.getTranslationWithoutContext()));
                 row.createCell(4).setCellValue(result.getSynonyms() != null ? String.join(", ", result.getSynonyms()) : "");
                 row.createCell(5).setCellValue(safeString(result.getComments()));
+                if (result.getCost() != null) {
+                    row.createCell(6).setCellValue(result.getCost());
+                }
+                if (result.getDurationMs() != null) {
+                    row.createCell(7).setCellValue(result.getDurationMs());
+                }
             }
 
             // Auto-size columns

@@ -19,4 +19,10 @@ public class GeminiLlmService extends AbstractLlmService {
         String modelName = System.getenv("GEMINI_MODEL_NAME");
         return (modelName == null || modelName.isBlank()) ? "gemini-1.5-pro" : modelName;
     }
+
+    @Override
+    protected double calculateCost(int inputTokens, int outputTokens) {
+        // Rough pricing for gemini-1.5-pro: $0.0035 / 1k input, $0.0105 / 1k output
+        return (inputTokens * 0.0035 / 1000.0) + (outputTokens * 0.0105 / 1000.0);
+    }
 }

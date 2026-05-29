@@ -3,9 +3,12 @@ package de.knipex.glossar.service;
 import de.knipex.glossar.model.DictionaryEntry;
 import de.knipex.glossar.model.TranslationResult;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.model.chat.ChatModel;
+import dev.langchain4j.model.chat.response.ChatResponse;
 import dev.langchain4j.model.input.Prompt;
 import dev.langchain4j.model.input.PromptTemplate;
+import dev.langchain4j.model.output.TokenUsage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -59,7 +62,13 @@ public abstract class AbstractLlmService implements LlmService {
         variables.put("context", contextText);
 
         Prompt prompt = template.apply(variables);
-        String response = model.chat(prompt.text());
+        
+        long startTime = System.currentTimeMillis();
+        ChatResponse chatResponse = model.chat(UserMessage.from(prompt.text()));
+        long durationMs = System.currentTimeMillis() - startTime;
+
+        String response = chatResponse.aiMessage().text();
+        TokenUsage usage = chatResponse.tokenUsage();
 
         try {
             String json = response.trim();
@@ -85,13 +94,32 @@ public abstract class AbstractLlmService implements LlmService {
                     result.setComments(noContextComment + " " + result.getComments());
                 }
             }
+            
+            result.setDurationMs(durationMs);
+            if (usage != null) {
+                result.setCost(calculateCost(usage.inputTokenCount(), usage.outputTokenCount()));
+            }
+            
             return result;
         } catch (Exception e) {
             logger.error("Error parsing LLM response: {}", response, e);
             TranslationResult errorResult = new TranslationResult();
             errorResult.setContent(content);
             errorResult.setComments("Error parsing LLM response. Original response: " + response);
+            errorResult.setDurationMs(durationMs);
+            if (usage != null) {
+                errorResult.setCost(calculateCost(usage.inputTokenCount(), usage.outputTokenCount()));
+            }
             return errorResult;
         }
     }
+
+    /**
+     * Calculates the cost based on token usage.
+     *
+     * @param inputTokens  Number of input tokens.
+     * @param outputTokens Number of output tokens.
+     * @return The calculated cost.
+     */
+    protected abstract double calculateCost(int inputTokens, int outputTokens);
 }
