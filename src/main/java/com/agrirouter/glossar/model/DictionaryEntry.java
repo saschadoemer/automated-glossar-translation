@@ -1,5 +1,7 @@
 package com.agrirouter.glossar.model;
 
+import java.util.Objects;
+
 /**
  * Entry from the master dictionary.
  */
@@ -24,6 +26,21 @@ public class DictionaryEntry {
 
     public String getTargetLanguage() {
         return targetLanguage;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        DictionaryEntry that = (DictionaryEntry) o;
+        return Objects.equals(identifier, that.identifier) &&
+                Objects.equals(german, that.german) &&
+                Objects.equals(targetLanguage, that.targetLanguage);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(identifier, german, targetLanguage);
     }
 
     @Override

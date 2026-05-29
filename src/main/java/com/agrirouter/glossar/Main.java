@@ -21,20 +21,27 @@ public class Main {
 
     public static void main(String[] args) {
         if (args.length < 1) {
-            logger.error("Usage: java -jar ... <target-language-code>");
+            logger.error("Usage: java -jar ... <target-language-code> [--fuzzy]");
             System.exit(1);
         }
         String targetLanguage = args[0];
-        new Main().run(targetLanguage);
+        boolean fuzzy = false;
+        for (String arg : args) {
+            if ("--fuzzy".equalsIgnoreCase(arg)) {
+                fuzzy = true;
+                break;
+            }
+        }
+        new Main().run(targetLanguage, fuzzy);
     }
 
-    public void run(String targetLanguage) {
-        logger.info("Starting glossary data processing for language: {}", targetLanguage);
+    public void run(String targetLanguage, boolean fuzzy) {
+        logger.info("Starting glossary data processing for language: {} (fuzzy: {})", targetLanguage, fuzzy);
 
         MasterDictionaryService masterDictionaryService = new MasterDictionaryService();
         Map<String, List<DictionaryEntry>> dictionary = masterDictionaryService.load(targetLanguage);
 
-        GlossaryService glossaryService = new GlossaryServiceImpl(targetLanguage, dictionary);
+        GlossaryService glossaryService = new GlossaryServiceImpl(targetLanguage, dictionary, fuzzy);
 
         try (var inputStream = getClass().getResourceAsStream(GLOSSAR_DATA_FILE)) {
             if (inputStream == null) {
