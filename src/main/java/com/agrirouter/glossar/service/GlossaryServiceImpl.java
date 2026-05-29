@@ -2,6 +2,7 @@ package com.agrirouter.glossar.service;
 
 import com.agrirouter.glossar.model.DictionaryEntry;
 import com.agrirouter.glossar.model.GlossaryContext;
+import com.agrirouter.glossar.model.TranslationResult;
 import org.apache.commons.csv.CSVRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -10,7 +11,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Spanish glossary service.
+ * Glossary service implementation.
  */
 public class GlossaryServiceImpl implements GlossaryService {
 
@@ -18,12 +19,14 @@ public class GlossaryServiceImpl implements GlossaryService {
     private final Map<String, List<DictionaryEntry>> dictionary;
     private final String targetLanguage;
     private final boolean fuzzy;
+    private final LlmService llmService;
 
-    public GlossaryServiceImpl(String targetLanguage, Map<String, List<DictionaryEntry>> dictionary, boolean fuzzy) {
+    public GlossaryServiceImpl(String targetLanguage, Map<String, List<DictionaryEntry>> dictionary, boolean fuzzy, LlmService llmService) {
         this.dictionary = dictionary;
         this.targetLanguage = targetLanguage;
         this.fuzzy = fuzzy;
-        logger.info("Glossary service initialized for language: {} (fuzzy: {})", targetLanguage, fuzzy);
+        this.llmService = llmService;
+        logger.info("Glossary service initialized for language: {} (fuzzy: {}, llm: {})", targetLanguage, fuzzy, llmService.getClass().getSimpleName());
     }
 
     @Override
@@ -40,12 +43,15 @@ public class GlossaryServiceImpl implements GlossaryService {
             }
 
             if (matchingEntries != null && !matchingEntries.isEmpty()) {
-                GlossaryContext context = new GlossaryContext(entry, matchingEntries);
                 logger.info("[{}] Gathered context for '{}': {} matches found.", targetLanguage, entry, matchingEntries.size());
-                logger.debug("[{}] The context gathered is the following: {}", targetLanguage, context);
             } else {
-                logger.warn("[{}] No matching entries found for: {}. Skipping.", targetLanguage, entry);
+                logger.warn("[{}] No matching entries found for: {}.", targetLanguage, entry);
             }
+
+            TranslationResult result = llmService.translate(entry, matchingEntries, targetLanguage);
+            System.out.println("--------------------------------------------------");
+            System.out.print(result.toString());
+            System.out.println("--------------------------------------------------");
         }
     }
 

@@ -1,9 +1,7 @@
 package com.agrirouter.glossar;
 
 import com.agrirouter.glossar.model.DictionaryEntry;
-import com.agrirouter.glossar.service.GlossaryService;
-import com.agrirouter.glossar.service.GlossaryServiceImpl;
-import com.agrirouter.glossar.service.MasterDictionaryService;
+import com.agrirouter.glossar.service.*;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.slf4j.Logger;
@@ -21,27 +19,49 @@ public class Main {
 
     public static void main(String[] args) {
         if (args.length < 1) {
-            logger.error("Usage: java -jar ... <target-language-code> [--fuzzy]");
+            logger.error("Usage: java -jar ... <target-language-code> [--fuzzy] [--llm <openai|gemini>]");
             System.exit(1);
         }
         String targetLanguage = args[0];
         boolean fuzzy = false;
-        for (String arg : args) {
-            if ("--fuzzy".equalsIgnoreCase(arg)) {
+        String llmType = "openai";
+        for (int i = 0; i < args.length; i++) {
+            if ("--fuzzy".equalsIgnoreCase(args[i])) {
                 fuzzy = true;
-                break;
+            }
+            if ("--llm".equalsIgnoreCase(args[i]) && i + 1 < args.length) {
+                llmType = args[i + 1].toLowerCase();
             }
         }
-        new Main().run(targetLanguage, fuzzy);
+        new Main().run(targetLanguage, fuzzy, llmType);
     }
 
-    public void run(String targetLanguage, boolean fuzzy) {
-        logger.info("Starting glossary data processing for language: {} (fuzzy: {})", targetLanguage, fuzzy);
+    public void run(String targetLanguage, boolean fuzzy, String llmType) {
+        logger.info("Starting glossary data processing for language: {} (fuzzy: {}, llm: {})", targetLanguage, fuzzy, llmType);
+
+        LlmService llmService;
+        if ("gemini".equals(llmType)) {
+            String apiKey = System.getenv("GEMINI_API_KEY");
+            if (apiKey == null || apiKey.isEmpty()) {
+                logger.error("GEMINI_API_KEY environment variable not set.");
+                System.exit(1);
+                return;
+            }
+            llmService = new GeminiLlmService(apiKey);
+        } else {
+            String apiKey = System.getenv("OPENAI_API_KEY");
+            if (apiKey == null || apiKey.isEmpty()) {
+                logger.error("OPENAI_API_KEY environment variable not set.");
+                System.exit(1);
+                return;
+            }
+            llmService = new OpenAiLlmService(apiKey);
+        }
 
         MasterDictionaryService masterDictionaryService = new MasterDictionaryService();
         Map<String, List<DictionaryEntry>> dictionary = masterDictionaryService.load(targetLanguage);
 
-        GlossaryService glossaryService = new GlossaryServiceImpl(targetLanguage, dictionary, fuzzy);
+        GlossaryService glossaryService = new GlossaryServiceImpl(targetLanguage, dictionary, fuzzy, llmService);
 
         try (var inputStream = getClass().getResourceAsStream(GLOSSAR_DATA_FILE)) {
             if (inputStream == null) {
