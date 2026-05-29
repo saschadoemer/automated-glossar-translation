@@ -84,7 +84,12 @@ public class Main {
         Map<String, List<DictionaryEntry>> dictionary = masterDictionaryService.load(targetLanguage);
 
         GlossaryService glossaryService = new GlossaryServiceImpl(targetLanguage, dictionary, fuzzy, llmService);
-        List<TranslationResult> results = new ArrayList<>();
+        ExportService exportService = new ExportService();
+        StateService stateService = new StateService();
+
+        List<TranslationResult> results = exportService.loadFromExcel(OUTPUT_FILE);
+        String lastProcessedId = stateService.loadLastProcessedId();
+        boolean skipping = lastProcessedId != null;
 
         try (var inputStream = getClass().getResourceAsStream(GLOSSAR_DATA_FILE)) {
             if (inputStream == null) {
@@ -95,9 +100,21 @@ public class Main {
             try (var reader = new InputStreamReader(inputStream, StandardCharsets.UTF_8);
                  var csvParser = new CSVParser(reader, CSVFormat.DEFAULT)) {
                 int count = 0;
+                boolean thresholdReached = false;
                 for (var csvRecord : csvParser) {
+                    if (csvRecord.size() == 0) continue;
+                    String currentId = csvRecord.get(0);
+
+                    if (skipping) {
+                        if (currentId.equals(lastProcessedId)) {
+                            skipping = false;
+                        }
+                        continue;
+                    }
+
                     if (threshold != null && count >= threshold) {
                         logger.info("Threshold reached ({} entries). Stopping.", threshold);
+                        thresholdReached = true;
                         break;
                     }
 
@@ -114,8 +131,16 @@ public class Main {
                     TranslationResult result = glossaryService.process(csvRecord);
                     if (result != null) {
                         results.add(result);
+                        stateService.saveLastProcessedId(currentId);
+                        exportService.exportToExcel(results, OUTPUT_FILE);
                     }
                     count++;
+                }
+
+                if (!thresholdReached && !skipping) {
+                    stateService.clear();
+                } else if (skipping) {
+                    logger.warn("Last processed ID '{}' not found in CSV. Resume failed.", lastProcessedId);
                 }
             }
         } catch (Exception e) {
@@ -134,7 +159,6 @@ public class Main {
             logger.info("- Total cost (rough): ${}", String.format("%.6f", totalCost));
             logger.info("- Total duration (LLM calls): {}ms ({}s)", totalDuration, totalDuration / 1000.0);
 
-            ExportService exportService = new ExportService();
             exportService.exportToExcel(results, OUTPUT_FILE);
         } else {
             logger.warn("No results to export.");

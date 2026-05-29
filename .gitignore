@@ -42,6 +42,7 @@ build/
 .local-data/
 local.env
 glossary-translation-results.xlsx
+.state
 
 ### IDEA ###
 .idea
