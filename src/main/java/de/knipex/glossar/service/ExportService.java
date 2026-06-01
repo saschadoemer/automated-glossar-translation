@@ -37,6 +37,7 @@ public class ExportService {
             Row headerRow = sheet.createRow(0);
             String[] headers = {
                     "Content",
+                    "Language",
                     "Translation with Context",
                     "Confidence",
                     "Translation without Context",
@@ -63,18 +64,19 @@ public class ExportService {
                 if (result == null) continue;
                 Row row = sheet.createRow(rowNum++);
                 row.createCell(0).setCellValue(safeString(result.getContent()));
-                row.createCell(1).setCellValue(safeString(result.getTranslationWithContext()));
+                row.createCell(1).setCellValue(safeString(result.getLanguage()));
+                row.createCell(2).setCellValue(safeString(result.getTranslationWithContext()));
                 if (result.getConfidence() != null) {
-                    row.createCell(2).setCellValue(result.getConfidence());
+                    row.createCell(3).setCellValue(result.getConfidence());
                 }
-                row.createCell(3).setCellValue(safeString(result.getTranslationWithoutContext()));
-                row.createCell(4).setCellValue(result.getSynonyms() != null ? String.join(", ", result.getSynonyms()) : "");
-                row.createCell(5).setCellValue(safeString(result.getComments()));
+                row.createCell(4).setCellValue(safeString(result.getTranslationWithoutContext()));
+                row.createCell(5).setCellValue(result.getSynonyms() != null ? String.join(", ", result.getSynonyms()) : "");
+                row.createCell(6).setCellValue(safeString(result.getComments()));
                 if (result.getCost() != null) {
-                    row.createCell(6).setCellValue(result.getCost());
+                    row.createCell(7).setCellValue(result.getCost());
                 }
                 if (result.getDurationMs() != null) {
-                    row.createCell(7).setCellValue(result.getDurationMs());
+                    row.createCell(8).setCellValue(result.getDurationMs());
                 }
             }
 
@@ -128,6 +130,7 @@ public class ExportService {
 
                 TranslationResult result = new TranslationResult();
                 result.setContent(getCellValue(row, headerMap.get("Content")));
+                result.setLanguage(getCellValue(row, headerMap.get("Language")));
                 result.setTranslationWithContext(getCellValue(row, headerMap.get("Translation with Context")));
                 result.setConfidence(getCellDoubleValue(row, headerMap.get("Confidence")));
                 result.setTranslationWithoutContext(getCellValue(row, headerMap.get("Translation without Context")));

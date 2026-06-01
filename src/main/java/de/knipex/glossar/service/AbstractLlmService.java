@@ -82,6 +82,7 @@ public abstract class AbstractLlmService implements LlmService {
                 json = json.substring(0, json.length() - 3);
             }
             TranslationResult result = objectMapper.readValue(json.trim(), TranslationResult.class);
+            result.setLanguage(targetLanguage);
 
             // Post-processing to ensure requirements are met
             if (context == null || context.isEmpty()) {
@@ -105,6 +106,7 @@ public abstract class AbstractLlmService implements LlmService {
             logger.error("Error parsing LLM response: {}", response, e);
             TranslationResult errorResult = new TranslationResult();
             errorResult.setContent(content);
+            errorResult.setLanguage(targetLanguage);
             errorResult.setComments("Error parsing LLM response. Original response: " + response);
             errorResult.setDurationMs(durationMs);
             if (usage != null) {

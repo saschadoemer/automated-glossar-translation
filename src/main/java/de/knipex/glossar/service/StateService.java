@@ -19,15 +19,16 @@ public class StateService {
     /**
      * Loads the last processed ID from the state file.
      *
+     * @param language The language to load the state for.
      * @return The last processed ID, or null if no state exists.
      */
-    public String loadLastProcessedId() {
-        Path path = Paths.get(STATE_FILE);
+    public String loadLastProcessedId(String language) {
+        Path path = Paths.get(STATE_FILE + "_" + language);
         if (Files.exists(path)) {
             try {
                 String id = Files.readString(path).trim();
                 if (!id.isEmpty()) {
-                    logger.info("Found previous state. Last processed ID: {}", id);
+                    logger.info("Found previous state for {}. Last processed ID: {}", language, id);
                     return id;
                 }
             } catch (IOException e) {
@@ -40,11 +41,12 @@ public class StateService {
     /**
      * Saves the last processed ID to the state file.
      *
-     * @param id The ID to save.
+     * @param id       The ID to save.
+     * @param language The language to save the state for.
      */
-    public void saveLastProcessedId(String id) {
+    public void saveLastProcessedId(String id, String language) {
         try {
-            Files.writeString(Paths.get(STATE_FILE), id);
+            Files.writeString(Paths.get(STATE_FILE + "_" + language), id);
         } catch (IOException e) {
             logger.error("Error writing state file", e);
         }
@@ -52,11 +54,13 @@ public class StateService {
 
     /**
      * Clears the state file.
+     *
+     * @param language The language to clear the state for.
      */
-    public void clear() {
+    public void clear(String language) {
         try {
-            Files.deleteIfExists(Paths.get(STATE_FILE));
-            logger.debug("State file cleared.");
+            Files.deleteIfExists(Paths.get(STATE_FILE + "_" + language));
+            logger.debug("State file for {} cleared.", language);
         } catch (IOException e) {
             logger.error("Error deleting state file", e);
         }

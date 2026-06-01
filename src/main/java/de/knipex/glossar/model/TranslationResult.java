@@ -7,6 +7,7 @@ import java.util.List;
  */
 public class TranslationResult {
     private String content;
+    private String language;
     private String translationWithContext;
     private Double confidence;
     private String translationWithoutContext;
@@ -21,6 +22,14 @@ public class TranslationResult {
 
     public void setContent(String content) {
         this.content = content;
+    }
+    
+    public String getLanguage() {
+        return language;
+    }
+
+    public void setLanguage(String language) {
+        this.language = language;
     }
 
     public String getTranslationWithContext() {
@@ -82,7 +91,7 @@ public class TranslationResult {
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
-        sb.append("1) Content: ").append(content).append("\n");
+        sb.append("1) Content: ").append(content).append(" (").append(language).append(")\n");
         if (translationWithContext != null && !translationWithContext.isEmpty()) {
             sb.append("2) Translation (with context): ").append(translationWithContext).append("\n");
             sb.append("3) Confidence: ").append(confidence).append("\n");
