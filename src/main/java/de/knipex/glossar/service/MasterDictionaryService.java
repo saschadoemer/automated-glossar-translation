@@ -37,43 +37,44 @@ public class MasterDictionaryService {
             }
 
             try (Workbook workbook = new XSSFWorkbook(inputStream)) {
-                Sheet sheet = workbook.getSheetAt(0);
-                Row headerRow = sheet.getRow(0);
-                if (headerRow == null) {
-                    logger.error("Excel file is empty or missing header row.");
-                    return dictionary;
-                }
+                boolean languageFoundInAnySheet = false;
+                for (int s = 0; s < workbook.getNumberOfSheets(); s++) {
+                    Sheet sheet = workbook.getSheetAt(s);
+                    Row headerRow = sheet.getRow(0);
+                    if (headerRow == null) continue;
 
-                int targetLangCol = -1;
-                for (Cell cell : headerRow) {
-                    if (cell.getCellType() == CellType.STRING) {
-                        String headerValue = cell.getStringCellValue();
-                        if (targetLanguageCode.equalsIgnoreCase(headerValue)) {
-                            targetLangCol = cell.getColumnIndex();
-                            break;
+                    int targetLangCol = -1;
+                    for (Cell cell : headerRow) {
+                        if (cell.getCellType() == CellType.STRING) {
+                            String headerValue = cell.getStringCellValue();
+                            if (targetLanguageCode.equalsIgnoreCase(headerValue)) {
+                                targetLangCol = cell.getColumnIndex();
+                                languageFoundInAnySheet = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    for (int i = 1; i <= sheet.getLastRowNum(); i++) {
+                        Row row = sheet.getRow(i);
+                        if (row == null) continue;
+
+                        String identifier = getCellValueAsString(row.getCell(0));
+                        String german = getCellValueAsString(row.getCell(1));
+                        String targetLanguage = targetLangCol != -1 ? getCellValueAsString(row.getCell(targetLangCol)) : "";
+
+                        if (identifier != null && !identifier.isEmpty()) {
+                            DictionaryEntry entry = new DictionaryEntry(identifier, german, targetLanguage);
+                            dictionary.computeIfAbsent(identifier, k -> new ArrayList<>()).add(entry);
+                            if (german != null && !german.isEmpty() && !german.equals(identifier)) {
+                                dictionary.computeIfAbsent(german, k -> new ArrayList<>()).add(entry);
+                            }
                         }
                     }
                 }
 
-                if (targetLangCol == -1) {
-                    logger.warn("Language code '{}' not found in Excel headers. Only loading mandatory columns.", targetLanguageCode);
-                }
-
-                for (int i = 1; i <= sheet.getLastRowNum(); i++) {
-                    Row row = sheet.getRow(i);
-                    if (row == null) continue;
-
-                    String identifier = getCellValueAsString(row.getCell(0));
-                    String german = getCellValueAsString(row.getCell(1));
-                    String targetLanguage = targetLangCol != -1 ? getCellValueAsString(row.getCell(targetLangCol)) : "";
-
-                    if (identifier != null && !identifier.isEmpty()) {
-                        DictionaryEntry entry = new DictionaryEntry(identifier, german, targetLanguage);
-                        dictionary.computeIfAbsent(identifier, k -> new ArrayList<>()).add(entry);
-                        if (german != null && !german.isEmpty() && !german.equals(identifier)) {
-                            dictionary.computeIfAbsent(german, k -> new ArrayList<>()).add(entry);
-                        }
-                    }
+                if (!languageFoundInAnySheet) {
+                    logger.warn("Language code '{}' not found in any Excel sheet headers. Only loading mandatory columns.", targetLanguageCode);
                 }
             }
         } catch (Exception e) {
