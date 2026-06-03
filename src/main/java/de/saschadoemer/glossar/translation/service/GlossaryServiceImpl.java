@@ -1,6 +1,7 @@
 package de.saschadoemer.glossar.translation.service;
 
 import de.saschadoemer.glossar.translation.model.DictionaryEntry;
+import de.saschadoemer.glossar.translation.model.TranslationJob;
 import de.saschadoemer.glossar.translation.model.TranslationResult;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
@@ -25,6 +26,7 @@ public class GlossaryServiceImpl implements GlossaryService {
     private final MasterDictionaryService masterDictionaryService;
     private final ExportService exportService;
     private final StateService stateService;
+    private final Map<String, TranslationJob> jobs = new java.util.concurrent.ConcurrentHashMap<>();
 
     public GlossaryServiceImpl(MasterDictionaryService masterDictionaryService,
                                ExportService exportService,
@@ -37,6 +39,7 @@ public class GlossaryServiceImpl implements GlossaryService {
     /**
      * Processes all records from the provided input stream.
      *
+     * @param jobId          The job identifier.
      * @param inputStream    The input stream containing terms.
      * @param targetLanguage The target language for translation.
      * @param fuzzy          Whether to use fuzzy matching.
@@ -45,10 +48,15 @@ public class GlossaryServiceImpl implements GlossaryService {
      * @param waitTime       Wait time in seconds between records.
      */
     @Override
-    public void processAll(java.io.InputStream inputStream, String targetLanguage, boolean fuzzy, String llmType, Integer threshold, int waitTime) {
-        var outputFile = "glossary-translation-results-" + targetLanguage.toLowerCase() + ".xlsx";
-        logger.info("Starting glossary data processing for language: {} (fuzzy: {}, llm: {}, threshold: {}, waitTime: {}s)",
-                targetLanguage, fuzzy, llmType, threshold != null ? threshold : "none", waitTime);
+    public void processAll(String jobId, java.io.InputStream inputStream, String targetLanguage, boolean fuzzy, String llmType, Integer threshold, int waitTime) {
+        var job = new TranslationJob(jobId, targetLanguage);
+        jobs.put(jobId, job);
+
+        var outputFile = "glossary-translation-" + jobId + "-" + targetLanguage.toLowerCase() + ".xlsx";
+        job.setResultFilePath(outputFile);
+
+        logger.info("Starting glossary data processing for job {}: language: {} (fuzzy: {}, llm: {}, threshold: {}, waitTime: {}s)",
+                jobId, targetLanguage, fuzzy, llmType, threshold != null ? threshold : "none", waitTime);
 
         LlmService llmService;
         if ("gemini".equals(llmType)) {
@@ -76,11 +84,15 @@ public class GlossaryServiceImpl implements GlossaryService {
         var skipping = lastProcessedId != null;
 
         try {
-            try (var reader = new InputStreamReader(inputStream, StandardCharsets.UTF_8);
+            var fileBytes = inputStream.readAllBytes();
+            try (var reader = new InputStreamReader(new java.io.ByteArrayInputStream(fileBytes), StandardCharsets.UTF_8);
                  var csvParser = new CSVParser(reader, CSVFormat.DEFAULT)) {
+                var records = csvParser.getRecords();
+                job.setTotalItems(threshold != null ? Math.min(threshold, records.size()) : records.size());
+
                 var count = 0;
                 var thresholdReached = false;
-                for (var csvRecord : csvParser) {
+                for (var csvRecord : records) {
                     if (csvRecord.size() == 0) continue;
                     var currentId = csvRecord.get(0);
 
@@ -114,6 +126,7 @@ public class GlossaryServiceImpl implements GlossaryService {
                         exportService.exportToExcel(results, outputFile);
                     }
                     count++;
+                    job.setProcessedItems(count);
                 }
 
                 if (!thresholdReached && !skipping) {
@@ -124,7 +137,10 @@ public class GlossaryServiceImpl implements GlossaryService {
             }
         } catch (Exception e) {
             logger.error("Error during glossary processing", e);
+            job.setError(e.getMessage());
         }
+
+        job.setCompleted(true);
 
         if (!results.isEmpty()) {
             var totalCost = 0.0;
@@ -144,6 +160,11 @@ public class GlossaryServiceImpl implements GlossaryService {
         }
 
         logger.info("Glossary data processing finished.");
+    }
+
+    @Override
+    public TranslationJob getJobStatus(String jobId) {
+        return jobs.get(jobId);
     }
 
     @Override

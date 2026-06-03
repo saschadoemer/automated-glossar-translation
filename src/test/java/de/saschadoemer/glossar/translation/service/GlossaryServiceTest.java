@@ -1,5 +1,6 @@
 package de.saschadoemer.glossar.translation.service;
 
+import de.saschadoemer.glossar.translation.model.TranslationJob;
 import de.saschadoemer.glossar.translation.model.TranslationResult;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVPrinter;
@@ -12,6 +13,12 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
+import java.util.Collections;
+
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import java.util.Collections;
 
 import static org.mockito.ArgumentMatchers.*;
@@ -44,5 +51,14 @@ class GlossaryServiceTest {
         // Since processAll creates the LLM service internally using System.getenv, 
         // this might be tricky in a unit test without additional refactoring.
         // For now, let's at least verify it doesn't crash if the master dictionary is missing.
+    }
+    @Test
+    void testGetJobStatus() {
+        MasterDictionaryService masterDictionaryService = new MasterDictionaryService();
+        ExportService exportService = new ExportService();
+        StateService stateService = new StateService();
+        GlossaryServiceImpl service = new GlossaryServiceImpl(masterDictionaryService, exportService, stateService);
+        
+        assertNull(service.getJobStatus("non-existent"));
     }
 }
