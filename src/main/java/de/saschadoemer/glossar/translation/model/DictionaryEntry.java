@@ -1,5 +1,6 @@
 package de.saschadoemer.glossar.translation.model;
 
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -8,12 +9,12 @@ import java.util.Objects;
 public class DictionaryEntry {
     private String identifier;
     private String german;
-    private String targetLanguage;
+    private Map<String, String> translations;
 
-    public DictionaryEntry(String identifier, String german, String targetLanguage) {
+    public DictionaryEntry(String identifier, String german, Map<String, String> translations) {
         this.identifier = identifier;
         this.german = german;
-        this.targetLanguage = targetLanguage;
+        this.translations = translations;
     }
 
     public String getIdentifier() {
@@ -24,8 +25,12 @@ public class DictionaryEntry {
         return german;
     }
 
-    public String getTargetLanguage() {
-        return targetLanguage;
+    public Map<String, String> getTranslations() {
+        return translations;
+    }
+
+    public String getTranslation(String languageCode) {
+        return translations != null ? translations.get(languageCode) : null;
     }
 
     @Override
@@ -35,12 +40,12 @@ public class DictionaryEntry {
         DictionaryEntry that = (DictionaryEntry) o;
         return Objects.equals(identifier, that.identifier) &&
                 Objects.equals(german, that.german) &&
-                Objects.equals(targetLanguage, that.targetLanguage);
+                Objects.equals(translations, that.translations);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(identifier, german, targetLanguage);
+        return Objects.hash(identifier, german, translations);
     }
 
     @Override
@@ -48,7 +53,7 @@ public class DictionaryEntry {
         return "DictionaryEntry{" +
                 "identifier='" + identifier + '\'' +
                 ", german='" + german + '\'' +
-                ", targetLanguage='" + targetLanguage + '\'' +
+                ", translations=" + translations +
                 '}';
     }
 }

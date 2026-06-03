@@ -57,7 +57,8 @@ public abstract class AbstractLlmService implements LlmService {
         String contextText = context == null || context.isEmpty() 
             ? "No context available." 
             : context.stream()
-                .map(DictionaryEntry::toString)
+                .map(de -> String.format("Identifier: %s, German: %s, Translation for %s: %s", 
+                    de.getIdentifier(), de.getGerman(), targetLanguage, de.getTranslation(targetLanguage)))
                 .collect(Collectors.joining("\n"));
         variables.put("context", contextText);
 

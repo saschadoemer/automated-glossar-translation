@@ -36,7 +36,7 @@ public class GlossaryServiceImpl implements GlossaryService {
         this.stateService = stateService;
     }
 
-    public void processAll(String targetLanguage, boolean fuzzy, String llmType, Integer threshold, int waitTime) {
+    public void processAll(java.io.InputStream inputStream, String targetLanguage, boolean fuzzy, String llmType, Integer threshold, int waitTime) {
         String outputFile = "glossary-translation-results-" + targetLanguage.toLowerCase() + ".xlsx";
         logger.info("Starting glossary data processing for language: {} (fuzzy: {}, llm: {}, threshold: {}, waitTime: {}s)",
                 targetLanguage, fuzzy, llmType, threshold != null ? threshold : "none", waitTime);
@@ -57,17 +57,16 @@ public class GlossaryServiceImpl implements GlossaryService {
         }
 
         Map<String, List<DictionaryEntry>> dictionary = masterDictionaryService.load(targetLanguage);
+        if (dictionary.isEmpty() && !masterDictionaryService.isMasterDictionarySet()) {
+            logger.error("Master dictionary has not been set.");
+            return;
+        }
 
         List<TranslationResult> results = exportService.loadFromExcel(outputFile);
         String lastProcessedId = stateService.loadLastProcessedId(targetLanguage);
         boolean skipping = lastProcessedId != null;
 
-        try (var inputStream = getClass().getResourceAsStream(GLOSSAR_DATA_FILE)) {
-            if (inputStream == null) {
-                logger.error("Resource not found: {}", GLOSSAR_DATA_FILE);
-                return;
-            }
-
+        try {
             try (var reader = new InputStreamReader(inputStream, StandardCharsets.UTF_8);
                  var csvParser = new CSVParser(reader, CSVFormat.DEFAULT)) {
                 int count = 0;
