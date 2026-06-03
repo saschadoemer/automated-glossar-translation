@@ -27,10 +27,12 @@ public class MasterDictionaryService {
      * Set the master dictionary from an Excel file stream.
      *
      * @param inputStream The Excel file stream.
+     * @return A list of imported language codes.
      * @throws IOException If an error occurs during reading.
      */
-    public void setMasterDictionary(InputStream inputStream) throws IOException {
+    public List<String> setMasterDictionary(InputStream inputStream) throws IOException {
         var newDictionary = new HashMap<String, List<DictionaryEntry>>();
+        var importedLanguages = new HashSet<String>();
         try (var workbook = new XSSFWorkbook(inputStream)) {
             for (var s = 0; s < workbook.getNumberOfSheets(); s++) {
                 var sheet = workbook.getSheetAt(s);
@@ -43,6 +45,7 @@ public class MasterDictionaryService {
                         var headerValue = cell.getStringCellValue();
                         if (LANGUAGE_CODE_PATTERN.matcher(headerValue).matches() || "de-DE".equalsIgnoreCase(headerValue)) {
                             languageCols.put(cell.getColumnIndex(), headerValue);
+                            importedLanguages.add(headerValue);
                         }
                     }
                 }
@@ -71,6 +74,9 @@ public class MasterDictionaryService {
         }
         this.masterDictionary = newDictionary;
         logger.info("Uploaded and loaded {} entries into master dictionary.", masterDictionary.size());
+        var result = new ArrayList<>(importedLanguages);
+        Collections.sort(result);
+        return result;
     }
 
     /**

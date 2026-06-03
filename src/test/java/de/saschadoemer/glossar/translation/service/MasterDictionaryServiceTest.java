@@ -50,6 +50,11 @@ class MasterDictionaryServiceTest {
         masterDictionaryService.setMasterDictionary(new ByteArrayInputStream(bos.toByteArray()));
 
         assertTrue(masterDictionaryService.isMasterDictionarySet());
+        List<String> importedLanguages = masterDictionaryService.setMasterDictionary(new ByteArrayInputStream(bos.toByteArray()));
+        assertTrue(importedLanguages.contains("en-US"));
+        assertTrue(importedLanguages.contains("fr-FR"));
+        assertTrue(importedLanguages.contains("de-DE"));
+        assertFalse(importedLanguages.contains("InvalidHeader"));
         Map<String, List<DictionaryEntry>> loaded = masterDictionaryService.load("en-US");
         
         assertTrue(loaded.containsKey("TERM1"));
