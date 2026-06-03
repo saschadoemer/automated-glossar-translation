@@ -7,9 +7,9 @@ import java.util.Objects;
  * Entry from the master dictionary.
  */
 public class DictionaryEntry {
-    private String identifier;
-    private String german;
-    private Map<String, String> translations;
+    private final String identifier;
+    private final String german;
+    private final Map<String, String> translations;
 
     public DictionaryEntry(String identifier, String german, Map<String, String> translations) {
         this.identifier = identifier;
