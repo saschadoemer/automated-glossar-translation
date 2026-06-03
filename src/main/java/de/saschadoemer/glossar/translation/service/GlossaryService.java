@@ -1,6 +1,6 @@
-package de.knipex.glossar.service;
+package de.saschadoemer.glossar.translation.service;
 
-import de.knipex.glossar.model.TranslationResult;
+import de.saschadoemer.glossar.translation.model.TranslationResult;
 import org.apache.commons.csv.CSVRecord;
 
 /**

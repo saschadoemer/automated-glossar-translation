@@ -1,4 +1,4 @@
-package de.knipex.glossar.model;
+package de.saschadoemer.glossar.translation.model;
 
 import java.util.List;
 

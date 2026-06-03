@@ -1,4 +1,4 @@
-package de.knipex.glossar.service;
+package de.saschadoemer.glossar.translation.service;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

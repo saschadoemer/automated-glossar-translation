@@ -1,4 +1,4 @@
-package de.knipex.glossar.service;
+package de.saschadoemer.glossar.translation.service;
 
 import dev.langchain4j.model.openai.OpenAiChatModel;
 

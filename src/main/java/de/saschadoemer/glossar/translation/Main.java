@@ -1,8 +1,9 @@
-package de.knipex.glossar;
+package de.saschadoemer.glossar.translation;
 
-import de.knipex.glossar.model.DictionaryEntry;
-import de.knipex.glossar.model.TranslationResult;
+import de.saschadoemer.glossar.translation.model.DictionaryEntry;
+import de.saschadoemer.glossar.translation.model.TranslationResult;
 import de.knipex.glossar.service.*;
+import de.saschadoemer.glossar.translation.service.*;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.slf4j.Logger;
@@ -10,7 +11,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
