@@ -11,7 +11,6 @@ import org.springframework.stereotype.Service;
 
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -22,7 +21,6 @@ import java.util.Map;
 public class GlossaryServiceImpl implements GlossaryService {
 
     private static final Logger logger = LoggerFactory.getLogger(GlossaryServiceImpl.class);
-    private static final String GLOSSAR_DATA_FILE = "/glossar-master-data.csv";
 
     private final MasterDictionaryService masterDictionaryService;
     private final ExportService exportService;
@@ -36,44 +34,55 @@ public class GlossaryServiceImpl implements GlossaryService {
         this.stateService = stateService;
     }
 
+    /**
+     * Processes all records from the provided input stream.
+     *
+     * @param inputStream    The input stream containing terms.
+     * @param targetLanguage The target language for translation.
+     * @param fuzzy          Whether to use fuzzy matching.
+     * @param llmType        The LLM provider type.
+     * @param threshold      Maximum number of records to process.
+     * @param waitTime       Wait time in seconds between records.
+     */
+    @Override
     public void processAll(java.io.InputStream inputStream, String targetLanguage, boolean fuzzy, String llmType, Integer threshold, int waitTime) {
-        String outputFile = "glossary-translation-results-" + targetLanguage.toLowerCase() + ".xlsx";
+        var outputFile = "glossary-translation-results-" + targetLanguage.toLowerCase() + ".xlsx";
         logger.info("Starting glossary data processing for language: {} (fuzzy: {}, llm: {}, threshold: {}, waitTime: {}s)",
                 targetLanguage, fuzzy, llmType, threshold != null ? threshold : "none", waitTime);
 
         LlmService llmService;
         if ("gemini".equals(llmType)) {
-            String apiKey = System.getenv("GEMINI_API_KEY");
+            var apiKey = System.getenv("GEMINI_API_KEY");
             if (apiKey == null || apiKey.isEmpty()) {
                 throw new RuntimeException("GEMINI_API_KEY environment variable not set.");
             }
             llmService = new GeminiLlmService(apiKey);
         } else {
-            String apiKey = System.getenv("OPENAI_API_KEY");
+            var apiKey = System.getenv("OPENAI_API_KEY");
             if (apiKey == null || apiKey.isEmpty()) {
                 throw new RuntimeException("OPENAI_API_KEY environment variable not set.");
             }
             llmService = new OpenAiLlmService(apiKey);
         }
 
-        Map<String, List<DictionaryEntry>> dictionary = masterDictionaryService.load(targetLanguage);
+        var dictionary = masterDictionaryService.load(targetLanguage);
         if (dictionary.isEmpty() && !masterDictionaryService.isMasterDictionarySet()) {
             logger.error("Master dictionary has not been set.");
             return;
         }
 
-        List<TranslationResult> results = exportService.loadFromExcel(outputFile);
-        String lastProcessedId = stateService.loadLastProcessedId(targetLanguage);
-        boolean skipping = lastProcessedId != null;
+        var results = exportService.loadFromExcel(outputFile);
+        var lastProcessedId = stateService.loadLastProcessedId(targetLanguage);
+        var skipping = lastProcessedId != null;
 
         try {
             try (var reader = new InputStreamReader(inputStream, StandardCharsets.UTF_8);
                  var csvParser = new CSVParser(reader, CSVFormat.DEFAULT)) {
-                int count = 0;
-                boolean thresholdReached = false;
+                var count = 0;
+                var thresholdReached = false;
                 for (var csvRecord : csvParser) {
                     if (csvRecord.size() == 0) continue;
-                    String currentId = csvRecord.get(0);
+                    var currentId = csvRecord.get(0);
 
                     if (skipping) {
                         if (currentId.equals(lastProcessedId)) {
@@ -98,7 +107,7 @@ public class GlossaryServiceImpl implements GlossaryService {
                         }
                     }
 
-                    TranslationResult result = process(csvRecord, targetLanguage, dictionary, fuzzy, llmService);
+                    var result = process(csvRecord, targetLanguage, dictionary, fuzzy, llmService);
                     if (result != null) {
                         results.add(result);
                         stateService.saveLastProcessedId(currentId, targetLanguage);
@@ -118,9 +127,9 @@ public class GlossaryServiceImpl implements GlossaryService {
         }
 
         if (!results.isEmpty()) {
-            double totalCost = 0;
-            long totalDuration = 0;
-            for (TranslationResult res : results) {
+            var totalCost = 0.0;
+            var totalDuration = 0L;
+            for (var res : results) {
                 if (res.getCost() != null) totalCost += res.getCost();
                 if (res.getDurationMs() != null) totalDuration += res.getDurationMs();
             }
@@ -144,7 +153,7 @@ public class GlossaryServiceImpl implements GlossaryService {
 
     private TranslationResult process(CSVRecord record, String targetLanguage, Map<String, List<DictionaryEntry>> dictionary, boolean fuzzy, LlmService llmService) {
         if (record.size() > 0) {
-            String entry = record.get(0);
+            var entry = record.get(0);
             logger.debug("[{}] Processing entry: {}", targetLanguage, entry);
 
             List<DictionaryEntry> matchingEntries;
@@ -160,17 +169,13 @@ public class GlossaryServiceImpl implements GlossaryService {
                 logger.warn("[{}] No matching entries found for: {}.", targetLanguage, entry);
             }
 
-            TranslationResult result = llmService.translate(entry, matchingEntries, targetLanguage);
-            System.out.println("--------------------------------------------------");
-            System.out.print(result.toString());
-            System.out.println("--------------------------------------------------");
-            return result;
+            return llmService.translate(entry, matchingEntries, targetLanguage);
         }
         return null;
     }
 
     private List<DictionaryEntry> findFuzzyMatches(String entry, Map<String, List<DictionaryEntry>> dictionary) {
-        String searchEntry = entry.toLowerCase();
+        var searchEntry = entry.toLowerCase();
         if (searchEntry.endsWith(".")) {
             searchEntry = searchEntry.substring(0, searchEntry.length() - 1);
         }
@@ -179,10 +184,10 @@ public class GlossaryServiceImpl implements GlossaryService {
             return List.of();
         }
 
-        final String finalSearchEntry = searchEntry;
+        final var finalSearchEntry = searchEntry;
         return dictionary.entrySet().stream()
                 .filter(e -> {
-                    String key = e.getKey().toLowerCase();
+                    var key = e.getKey().toLowerCase();
                     return key.contains(finalSearchEntry) || finalSearchEntry.contains(key);
                 })
                 .flatMap(e -> e.getValue().stream())

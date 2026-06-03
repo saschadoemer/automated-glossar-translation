@@ -33,11 +33,10 @@ public class ExportService {
     public void exportToExcel(List<TranslationResult> results, String filePath) {
         logger.info("Exporting {} results to {}", results.size(), filePath);
 
-        try (Workbook workbook = new XSSFWorkbook()) {
-            Sheet sheet = workbook.createSheet("Glossary Results");
+        try (var workbook = new XSSFWorkbook()) {
+            var sheet = workbook.createSheet("Glossary Results");
 
-            // Create header row
-            Row headerRow = sheet.createRow(0);
+            var headerRow = sheet.createRow(0);
             String[] headers = {
                     "Content",
                     "Language",
@@ -50,22 +49,21 @@ public class ExportService {
                     "Duration (ms)"
             };
 
-            CellStyle headerStyle = workbook.createCellStyle();
-            Font headerFont = workbook.createFont();
+            var headerStyle = workbook.createCellStyle();
+            var headerFont = workbook.createFont();
             headerFont.setBold(true);
             headerStyle.setFont(headerFont);
 
-            for (int i = 0; i < headers.length; i++) {
-                Cell cell = headerRow.createCell(i);
+            for (var i = 0; i < headers.length; i++) {
+                var cell = headerRow.createCell(i);
                 cell.setCellValue(headers[i]);
                 cell.setCellStyle(headerStyle);
             }
 
-            // Fill data rows
-            int rowNum = 1;
-            for (TranslationResult result : results) {
+            var rowNum = 1;
+            for (var result : results) {
                 if (result == null) continue;
-                Row row = sheet.createRow(rowNum++);
+                var row = sheet.createRow(rowNum++);
                 row.createCell(0).setCellValue(safeString(result.getContent()));
                 row.createCell(1).setCellValue(safeString(result.getLanguage()));
                 row.createCell(2).setCellValue(safeString(result.getTranslationWithContext()));
@@ -83,13 +81,11 @@ public class ExportService {
                 }
             }
 
-            // Auto-size columns
-            for (int i = 0; i < headers.length; i++) {
+            for (var i = 0; i < headers.length; i++) {
                 sheet.autoSizeColumn(i);
             }
 
-            // Write to file
-            try (FileOutputStream fileOut = new FileOutputStream(filePath)) {
+            try (var fileOut = new FileOutputStream(filePath)) {
                 workbook.write(fileOut);
             }
 
@@ -110,35 +106,35 @@ public class ExportService {
      * @return The list of translation results.
      */
     public List<TranslationResult> loadFromExcel(String filePath) {
-        List<TranslationResult> results = new ArrayList<>();
-        File file = new File(filePath);
+        var results = new ArrayList<TranslationResult>();
+        var file = new File(filePath);
         if (!file.exists()) {
             return results;
         }
 
         logger.info("Loading previous results from {}", filePath);
-        try (Workbook workbook = new XSSFWorkbook(file)) {
-            Sheet sheet = workbook.getSheetAt(0);
-            Row headerRow = sheet.getRow(0);
+        try (var workbook = new XSSFWorkbook(file)) {
+            var sheet = workbook.getSheetAt(0);
+            var headerRow = sheet.getRow(0);
             if (headerRow == null) return results;
 
-            Map<String, Integer> headerMap = new HashMap<>();
-            for (Cell cell : headerRow) {
+            var headerMap = new HashMap<String, Integer>();
+            for (var cell : headerRow) {
                 headerMap.put(cell.getStringCellValue(), cell.getColumnIndex());
             }
 
-            for (int i = 1; i <= sheet.getLastRowNum(); i++) {
-                Row row = sheet.getRow(i);
+            for (var i = 1; i <= sheet.getLastRowNum(); i++) {
+                var row = sheet.getRow(i);
                 if (row == null) continue;
 
-                TranslationResult result = new TranslationResult();
+                var result = new TranslationResult();
                 result.setContent(getCellValue(row, headerMap.get("Content")));
                 result.setLanguage(getCellValue(row, headerMap.get("Language")));
                 result.setTranslationWithContext(getCellValue(row, headerMap.get("Translation with Context")));
                 result.setConfidence(getCellDoubleValue(row, headerMap.get("Confidence")));
                 result.setTranslationWithoutContext(getCellValue(row, headerMap.get("Translation without Context")));
                 
-                String synonymsStr = getCellValue(row, headerMap.get("Synonyms"));
+                var synonymsStr = getCellValue(row, headerMap.get("Synonyms"));
                 if (synonymsStr != null && !synonymsStr.isEmpty()) {
                     result.setSynonyms(Arrays.asList(synonymsStr.split(", ")));
                 }
@@ -158,7 +154,7 @@ public class ExportService {
 
     private String getCellValue(Row row, Integer index) {
         if (index == null) return null;
-        Cell cell = row.getCell(index);
+        var cell = row.getCell(index);
         if (cell == null) return null;
         if (cell.getCellType() == CellType.STRING) return cell.getStringCellValue();
         if (cell.getCellType() == CellType.NUMERIC) return String.valueOf(cell.getNumericCellValue());
@@ -167,14 +163,14 @@ public class ExportService {
 
     private Double getCellDoubleValue(Row row, Integer index) {
         if (index == null) return null;
-        Cell cell = row.getCell(index);
+        var cell = row.getCell(index);
         if (cell == null || cell.getCellType() != CellType.NUMERIC) return null;
         return cell.getNumericCellValue();
     }
 
     private Long getCellLongValue(Row row, Integer index) {
         if (index == null) return null;
-        Cell cell = row.getCell(index);
+        var cell = row.getCell(index);
         if (cell == null || cell.getCellType() != CellType.NUMERIC) return null;
         return (long) cell.getNumericCellValue();
     }

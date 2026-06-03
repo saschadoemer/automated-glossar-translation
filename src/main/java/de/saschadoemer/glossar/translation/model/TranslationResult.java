@@ -16,81 +16,153 @@ public class TranslationResult {
     private Double cost;
     private Long durationMs;
 
+    /**
+     * Returns the content to be translated.
+     * @return the content.
+     */
     public String getContent() {
         return content;
     }
 
+    /**
+     * Sets the content to be translated.
+     * @param content the content.
+     */
     public void setContent(String content) {
         this.content = content;
     }
     
+    /**
+     * Returns the target language.
+     * @return the language.
+     */
     public String getLanguage() {
         return language;
     }
 
+    /**
+     * Sets the target language.
+     * @param language the language.
+     */
     public void setLanguage(String language) {
         this.language = language;
     }
 
+    /**
+     * Returns the translation with context.
+     * @return the translation.
+     */
     public String getTranslationWithContext() {
         return translationWithContext;
     }
 
+    /**
+     * Sets the translation with context.
+     * @param translationWithContext the translation.
+     */
     public void setTranslationWithContext(String translationWithContext) {
         this.translationWithContext = translationWithContext;
     }
 
+    /**
+     * Returns the confidence score.
+     * @return the confidence.
+     */
     public Double getConfidence() {
         return confidence;
     }
 
+    /**
+     * Sets the confidence score.
+     * @param confidence the confidence.
+     */
     public void setConfidence(Double confidence) {
         this.confidence = confidence;
     }
 
+    /**
+     * Returns the translation without context.
+     * @return the translation.
+     */
     public String getTranslationWithoutContext() {
         return translationWithoutContext;
     }
 
+    /**
+     * Sets the translation without context.
+     * @param translationWithoutContext the translation.
+     */
     public void setTranslationWithoutContext(String translationWithoutContext) {
         this.translationWithoutContext = translationWithoutContext;
     }
 
+    /**
+     * Returns the list of synonyms.
+     * @return the synonyms.
+     */
     public List<String> getSynonyms() {
         return synonyms;
     }
 
+    /**
+     * Sets the list of synonyms.
+     * @param synonyms the synonyms.
+     */
     public void setSynonyms(List<String> synonyms) {
         this.synonyms = synonyms;
     }
 
+    /**
+     * Returns any comments or notes.
+     * @return the comments.
+     */
     public String getComments() {
         return comments;
     }
 
+    /**
+     * Sets any comments or notes.
+     * @param comments the comments.
+     */
     public void setComments(String comments) {
         this.comments = comments;
     }
 
+    /**
+     * Returns the cost of the translation.
+     * @return the cost.
+     */
     public Double getCost() {
         return cost;
     }
 
+    /**
+     * Sets the cost of the translation.
+     * @param cost the cost.
+     */
     public void setCost(Double cost) {
         this.cost = cost;
     }
 
+    /**
+     * Returns the duration of the translation call in milliseconds.
+     * @return the duration.
+     */
     public Long getDurationMs() {
         return durationMs;
     }
 
+    /**
+     * Sets the duration of the translation call.
+     * @param durationMs the duration.
+     */
     public void setDurationMs(Long durationMs) {
         this.durationMs = durationMs;
     }
 
     @Override
     public String toString() {
-        StringBuilder sb = new StringBuilder();
+        var sb = new StringBuilder();
         sb.append("1) Content: ").append(content).append(" (").append(language).append(")\n");
         if (translationWithContext != null && !translationWithContext.isEmpty()) {
             sb.append("2) Translation (with context): ").append(translationWithContext).append("\n");

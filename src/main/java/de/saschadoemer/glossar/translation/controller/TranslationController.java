@@ -2,16 +2,25 @@ package de.saschadoemer.glossar.translation.controller;
 
 import de.saschadoemer.glossar.translation.service.GlossaryService;
 import de.saschadoemer.glossar.translation.service.MasterDictionaryService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 
 @RestController
 @RequestMapping("/api/translation")
+@Tag(name = "Translation API", description = "Endpoints for glossary translation and dictionary management")
 public class TranslationController {
 
     private final GlossaryService glossaryService;
@@ -22,13 +31,35 @@ public class TranslationController {
         this.masterDictionaryService = masterDictionaryService;
     }
 
-    @PostMapping("/start")
-    public ResponseEntity<String> startTranslation(@RequestParam("file") MultipartFile file,
-                                                   @RequestParam String targetLanguage,
-                                                   @RequestParam(required = false, defaultValue = "false") boolean fuzzy,
-                                                   @RequestParam(required = false, defaultValue = "gemini") String llmType,
-                                                   @RequestParam(required = false) Integer threshold,
-                                                   @RequestParam(required = false, defaultValue = "3") int waitTime) {
+    /**
+     * Starts the translation process for a given CSV file.
+     *
+     * @param file           The CSV file containing terms to translate.
+     * @param targetLanguage The language code to translate the terms into.
+     * @param fuzzy          Whether to use fuzzy matching for dictionary lookups.
+     * @param llmType        The type of LLM to use (e.g., "gemini" or "openai").
+     * @param threshold      Optional threshold for the number of terms to process.
+     * @param waitTime       Time in seconds to wait between LLM calls.
+     * @return A response entity indicating the process status.
+     */
+    @PostMapping(value = "/start", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(
+            summary = "Start translation process",
+            description = "Uploads a CSV file and starts the translation process asynchronously.",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Translation process started successfully"),
+                    @ApiResponse(responseCode = "400", description = "Invalid input file"),
+                    @ApiResponse(responseCode = "412", description = "Master dictionary not set"),
+                    @ApiResponse(responseCode = "500", description = "Internal server error")
+            }
+    )
+    public ResponseEntity<String> startTranslation(
+            @Parameter(description = "CSV file with terms", required = true) @RequestParam("file") MultipartFile file,
+            @Parameter(description = "Target language code (e.g., en-US)", required = true) @RequestParam String targetLanguage,
+            @Parameter(description = "Enable fuzzy matching") @RequestParam(required = false, defaultValue = "false") boolean fuzzy,
+            @Parameter(description = "LLM provider type") @RequestParam(required = false, defaultValue = "gemini") String llmType,
+            @Parameter(description = "Limit number of processed entries") @RequestParam(required = false) Integer threshold,
+            @Parameter(description = "Wait time between requests in seconds") @RequestParam(required = false, defaultValue = "3") int waitTime) {
 
         if (file.isEmpty()) {
             return ResponseEntity.badRequest().body("Error: Input file is empty. Please provide a CSV file with terms.");
@@ -40,12 +71,10 @@ public class TranslationController {
         }
 
         try {
-            // Read bytes to allow async processing or handle carefully
-            byte[] fileBytes = file.getBytes();
-            
-            // Run in background as it might take a long time
+            var fileBytes = file.getBytes();
+
             CompletableFuture.runAsync(() -> {
-                try (java.io.ByteArrayInputStream bais = new java.io.ByteArrayInputStream(fileBytes)) {
+                try (var bais = new ByteArrayInputStream(fileBytes)) {
                     glossaryService.processAll(bais, targetLanguage, fuzzy, llmType, threshold, waitTime);
                 } catch (IOException e) {
                     throw new RuntimeException("Error processing translation input", e);
@@ -59,8 +88,24 @@ public class TranslationController {
         }
     }
 
-    @PostMapping("/master-dictionary/upload")
-    public ResponseEntity<String> uploadMasterDictionary(@RequestParam("file") MultipartFile file) {
+    /**
+     * Uploads and processes a master dictionary Excel file.
+     *
+     * @param file The Excel file containing the master dictionary.
+     * @return A response entity indicating the upload status.
+     */
+    @PostMapping(value = "/master-dictionary/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(
+            summary = "Upload master dictionary",
+            description = "Uploads an Excel file to be used as the master dictionary for translations.",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Master dictionary uploaded successfully"),
+                    @ApiResponse(responseCode = "400", description = "No file selected"),
+                    @ApiResponse(responseCode = "500", description = "Internal server error")
+            }
+    )
+    public ResponseEntity<String> uploadMasterDictionary(
+            @Parameter(description = "Excel file with dictionary data", required = true) @RequestParam("file") MultipartFile file) {
         if (file.isEmpty()) {
             return ResponseEntity.badRequest().body("Please select a file to upload.");
         }

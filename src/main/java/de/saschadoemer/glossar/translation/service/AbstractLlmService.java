@@ -48,13 +48,13 @@ public abstract class AbstractLlmService implements LlmService {
 
     @Override
     public TranslationResult translate(String content, List<DictionaryEntry> context, String targetLanguage) {
-        PromptTemplate template = PromptTemplate.from(promptTemplateText);
+        var template = PromptTemplate.from(promptTemplateText);
         
-        Map<String, Object> variables = new HashMap<>();
+        var variables = new HashMap<String, Object>();
         variables.put("content", content);
         variables.put("targetLanguage", targetLanguage);
         
-        String contextText = context == null || context.isEmpty() 
+        var contextText = context == null || context.isEmpty() 
             ? "No context available." 
             : context.stream()
                 .map(de -> String.format("Identifier: %s, German: %s, Translation for %s: %s", 
@@ -62,17 +62,17 @@ public abstract class AbstractLlmService implements LlmService {
                 .collect(Collectors.joining("\n"));
         variables.put("context", contextText);
 
-        Prompt prompt = template.apply(variables);
+        var prompt = template.apply(variables);
         
-        long startTime = System.currentTimeMillis();
-        ChatResponse chatResponse = model.chat(UserMessage.from(prompt.text()));
-        long durationMs = System.currentTimeMillis() - startTime;
+        var startTime = System.currentTimeMillis();
+        var chatResponse = model.chat(UserMessage.from(prompt.text()));
+        var durationMs = System.currentTimeMillis() - startTime;
 
-        String response = chatResponse.aiMessage().text();
-        TokenUsage usage = chatResponse.tokenUsage();
+        var response = chatResponse.aiMessage().text();
+        var usage = chatResponse.tokenUsage();
 
         try {
-            String json = response.trim();
+            var json = response.trim();
             if (json.startsWith("```json")) {
                 json = json.substring(7);
             }
@@ -82,14 +82,13 @@ public abstract class AbstractLlmService implements LlmService {
             if (json.endsWith("```")) {
                 json = json.substring(0, json.length() - 3);
             }
-            TranslationResult result = objectMapper.readValue(json.trim(), TranslationResult.class);
+            var result = objectMapper.readValue(json.trim(), TranslationResult.class);
             result.setLanguage(targetLanguage);
 
-            // Post-processing to ensure requirements are met
             if (context == null || context.isEmpty()) {
                 result.setTranslationWithContext(null);
                 result.setConfidence(null);
-                String noContextComment = "No matches within the context.";
+                var noContextComment = "No matches within the context.";
                 if (result.getComments() == null || result.getComments().isEmpty()) {
                     result.setComments(noContextComment);
                 } else if (!result.getComments().contains(noContextComment)) {
@@ -105,7 +104,7 @@ public abstract class AbstractLlmService implements LlmService {
             return result;
         } catch (Exception e) {
             logger.error("Error parsing LLM response: {}", response, e);
-            TranslationResult errorResult = new TranslationResult();
+            var errorResult = new TranslationResult();
             errorResult.setContent(content);
             errorResult.setLanguage(targetLanguage);
             errorResult.setComments("Error parsing LLM response. Original response: " + response);

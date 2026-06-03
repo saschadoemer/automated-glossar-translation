@@ -20,16 +20,15 @@ public class StateService {
     private static final String STATE_FILE = ".state";
 
     /**
-     * Loads the last processed ID from the state file.
-     *
-     * @param language The language to load the state for.
-     * @return The last processed ID, or null if no state exists.
+     * Loads the last processed ID for a given language.
+     * @param language the language code.
+     * @return the last processed ID, or null if not found.
      */
     public String loadLastProcessedId(String language) {
-        Path path = Paths.get(STATE_FILE + "_" + language);
+        var path = Paths.get(STATE_FILE + "_" + language);
         if (Files.exists(path)) {
             try {
-                String id = Files.readString(path).trim();
+                var id = Files.readString(path).trim();
                 if (!id.isEmpty()) {
                     logger.info("Found previous state for {}. Last processed ID: {}", language, id);
                     return id;
@@ -42,10 +41,9 @@ public class StateService {
     }
 
     /**
-     * Saves the last processed ID to the state file.
-     *
-     * @param id       The ID to save.
-     * @param language The language to save the state for.
+     * Saves the last processed ID for a given language.
+     * @param id the ID to save.
+     * @param language the language code.
      */
     public void saveLastProcessedId(String id, String language) {
         try {
@@ -56,9 +54,8 @@ public class StateService {
     }
 
     /**
-     * Clears the state file.
-     *
-     * @param language The language to clear the state for.
+     * Clears the state for a given language.
+     * @param language the language code.
      */
     public void clear(String language) {
         try {
