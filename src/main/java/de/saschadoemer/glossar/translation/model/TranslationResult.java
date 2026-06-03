@@ -1,18 +1,37 @@
 package de.saschadoemer.glossar.translation.model;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import java.util.List;
 
 /**
  * Result of an LLM translation.
  */
+@Schema(description = "Represents the result of an LLM-based translation")
 public class TranslationResult {
+
+    @Schema(description = "The original content to be translated", example = "Identifier")
     private String content;
+
+    @Schema(description = "The translation generated with dictionary context", example = "Bezeichner")
     private String translationWithContext;
+
+    @Schema(description = "Confidence score of the translation (0.0 to 1.0)", example = "0.95")
     private Double confidence;
+
+    @Schema(description = "The translation generated without dictionary context", example = "Kennung")
     private String translationWithoutContext;
+
+    @Schema(description = "List of potential synonyms")
     private List<String> synonyms;
+
+    @Schema(description = "Additional comments or notes from the LLM")
     private String comments;
+
+    @Schema(description = "Rough cost of the translation in USD", example = "0.000123")
     private Double cost;
+
+    @Schema(description = "Duration of the LLM call in milliseconds", example = "1200")
     private Long durationMs;
 
     /**

@@ -20,7 +20,7 @@ import org.springframework.stereotype.Service;
 @Service
 public class ExportService {
 
-    private static final Logger logger = LoggerFactory.getLogger(ExportService.class);
+    private static final Logger log = LoggerFactory.getLogger(ExportService.class);
 
     /**
      * Exports translation results to an Excel byte array.
@@ -29,7 +29,7 @@ public class ExportService {
      * @return The Excel file as a byte array.
      */
     public byte[] exportToExcel(List<TranslationResult> results) {
-        logger.info("Exporting {} results to memory", results.size());
+        log.info("Exporting {} results to memory", results.size());
 
         try (var workbook = new XSSFWorkbook();
              var bos = new java.io.ByteArrayOutputStream()) {
@@ -83,14 +83,20 @@ public class ExportService {
             }
 
             workbook.write(bos);
-            logger.info("Export finished successfully.");
+            log.info("Export finished successfully.");
             return bos.toByteArray();
         } catch (Exception e) {
-            logger.error("Error during Excel export", e);
+            log.error("Error during Excel export", e);
             return new byte[0];
         }
     }
 
+    /**
+     * Safely returns a string value, returning an empty string if the input is null.
+     *
+     * @param value The value to safely convert to a string.
+     * @return The string value or an empty string.
+     */
     private String safeString(String value) {
         return value == null ? "" : value;
     }

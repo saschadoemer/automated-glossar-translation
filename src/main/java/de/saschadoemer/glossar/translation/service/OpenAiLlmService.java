@@ -7,16 +7,11 @@ import dev.langchain4j.model.openai.OpenAiChatModel;
  */
 public class OpenAiLlmService extends AbstractLlmService {
 
-    public OpenAiLlmService(String apiKey) {
+    public OpenAiLlmService(String apiKey, String modelName) {
         super(OpenAiChatModel.builder()
                 .apiKey(apiKey)
-                .modelName(getModelName())
+                .modelName(modelName)
                 .build());
-    }
-
-    private static String getModelName() {
-        String modelName = System.getenv("OPENAI_MODEL_NAME");
-        return (modelName == null || modelName.isBlank()) ? "gpt-4o" : modelName;
     }
 
     @Override

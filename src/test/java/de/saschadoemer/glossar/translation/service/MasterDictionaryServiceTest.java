@@ -31,7 +31,7 @@ class MasterDictionaryServiceTest {
         Sheet sheet = workbook.createSheet("Test");
         Row header = sheet.createRow(0);
         header.createCell(0).setCellValue("ID");
-        header.createCell(1).setCellValue("DE");
+        header.createCell(1).setCellValue("de-DE");
         header.createCell(2).setCellValue("en-US");
         header.createCell(3).setCellValue("fr-FR");
         header.createCell(4).setCellValue("InvalidHeader");

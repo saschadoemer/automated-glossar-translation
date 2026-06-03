@@ -8,6 +8,8 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
@@ -27,6 +29,8 @@ import java.util.concurrent.CompletableFuture;
 @RequestMapping("/api/translation")
 @Tag(name = "Translation API", description = "Endpoints for glossary translation and dictionary management")
 public class TranslationController {
+
+    private static final Logger log = LoggerFactory.getLogger(TranslationController.class);
 
     private final GlossaryService glossaryService;
     private final MasterDictionaryService masterDictionaryService;
@@ -67,11 +71,16 @@ public class TranslationController {
             @Parameter(description = "Limit number of processed entries") @RequestParam(required = false) Integer threshold,
             @Parameter(description = "Wait time between requests in seconds") @RequestParam(required = false, defaultValue = "3") int waitTime) {
 
+        log.info("Start translation request received: targetLanguage={}, fuzzy={}, llmType={}, threshold={}, waitTime={}",
+                targetLanguage, fuzzy, llmType, threshold, waitTime);
+
         if (file.isEmpty()) {
+            log.warn("Start translation failed: Uploaded file is empty");
             return ResponseEntity.badRequest().build();
         }
 
         if (!masterDictionaryService.isMasterDictionarySet()) {
+            log.warn("Start translation failed: Master dictionary not set");
             return ResponseEntity.status(HttpStatus.PRECONDITION_FAILED).build();
         }
 
@@ -79,16 +88,20 @@ public class TranslationController {
             var fileBytes = file.getBytes();
             var jobId = UUID.randomUUID().toString();
 
+            log.info("Starting asynchronous translation job: jobId={}", jobId);
+
             CompletableFuture.runAsync(() -> {
                 try (var bais = new ByteArrayInputStream(fileBytes)) {
                     glossaryService.processAll(jobId, bais, targetLanguage, fuzzy, llmType, threshold, waitTime);
                 } catch (IOException e) {
+                    log.error("Error processing translation input for jobId={}", jobId, e);
                     throw new RuntimeException("Error processing translation input", e);
                 }
             });
 
             return ResponseEntity.ok(Map.of("jobId", jobId));
         } catch (IOException e) {
+            log.error("Failed to read uploaded file", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
@@ -112,19 +125,23 @@ public class TranslationController {
     )
     public ResponseEntity<?> getTranslationResult(
             @Parameter(description = "The job identifier", required = true) @PathVariable String jobId) {
+        log.info("Fetching translation result for jobId={}", jobId);
         var job = glossaryService.getJobStatus(jobId);
         if (job == null) {
+            log.warn("Job not found: jobId={}", jobId);
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Error: Job not found.");
         }
 
         if (job.isCompleted()) {
             if (job.getError() != null) {
+                log.error("Translation job failed: jobId={}, error={}", jobId, job.getError());
                 return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                         .body("Error: Translation job failed: " + job.getError());
             }
 
             var resultData = job.getResultData();
             if (resultData != null && resultData.length > 0) {
+                log.info("Returning completed translation result for jobId={}", jobId);
                 var resource = new ByteArrayResource(resultData);
                 var filename = "glossary-translation-" + jobId + "-" + job.getTargetLanguage().toLowerCase() + ".xlsx";
                 return ResponseEntity.ok()
@@ -132,10 +149,12 @@ public class TranslationController {
                         .contentType(MediaType.APPLICATION_OCTET_STREAM)
                         .body(resource);
             } else {
+                log.error("Result data not found for completed job: jobId={}", jobId);
                 return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                         .body("Error: Result data not found.");
             }
         } else {
+            log.info("Job in progress: jobId={}, processedItems={}/{}", jobId, job.getProcessedItems(), job.getTotalItems());
             return ResponseEntity.status(HttpStatus.ACCEPTED).body(Map.of(
                     "jobId", job.getId(),
                     "targetLanguage", job.getTargetLanguage(),
@@ -165,14 +184,18 @@ public class TranslationController {
     )
     public ResponseEntity<?> uploadMasterDictionary(
             @Parameter(description = "Excel file with dictionary data", required = true) @RequestParam("file") MultipartFile file) {
+        log.info("Master dictionary upload request received");
         if (file.isEmpty()) {
+            log.warn("Master dictionary upload failed: No file selected");
             return ResponseEntity.badRequest().body("Please select a file to upload.");
         }
 
         try {
             var importedLanguages = masterDictionaryService.setMasterDictionary(file.getInputStream());
+            log.info("Master dictionary uploaded successfully: languages={}", importedLanguages);
             return ResponseEntity.ok(Map.of("importedLanguages", importedLanguages));
         } catch (IOException e) {
+            log.error("Error processing master dictionary upload", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body("Error processing master dictionary: " + e.getMessage());
         }

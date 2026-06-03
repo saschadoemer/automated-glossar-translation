@@ -8,16 +8,11 @@ import dev.langchain4j.model.googleai.GoogleAiGeminiChatModel;
  */
 public class GeminiLlmService extends AbstractLlmService {
 
-    public GeminiLlmService(String apiKey) {
+    public GeminiLlmService(String apiKey, String modelName) {
         super(GoogleAiGeminiChatModel.builder()
                 .apiKey(apiKey)
-                .modelName(getModelName())
+                .modelName(modelName)
                 .build());
-    }
-
-    private static String getModelName() {
-        String modelName = System.getenv("GEMINI_MODEL_NAME");
-        return (modelName == null || modelName.isBlank()) ? "gemini-1.5-pro" : modelName;
     }
 
     @Override

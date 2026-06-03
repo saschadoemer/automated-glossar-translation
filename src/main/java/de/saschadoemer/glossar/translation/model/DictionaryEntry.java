@@ -1,14 +1,23 @@
 package de.saschadoemer.glossar.translation.model;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 import java.util.Map;
 import java.util.Objects;
 
 /**
  * Entry from the master dictionary.
  */
+@Schema(description = "Represents an entry from the master dictionary")
 public class DictionaryEntry {
+
+    @Schema(description = "Unique identifier for the entry", example = "Identifier")
     private final String identifier;
+
+    @Schema(description = "German translation for the entry", example = "Bezeichner")
     private final String german;
+
+    @Schema(description = "Available translations for different language codes")
     private final Map<String, String> translations;
 
     public DictionaryEntry(String identifier, String german, Map<String, String> translations) {

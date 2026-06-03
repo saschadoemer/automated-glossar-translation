@@ -18,7 +18,7 @@ import java.util.regex.Pattern;
 @Service
 public class MasterDictionaryService {
 
-    private static final Logger logger = LoggerFactory.getLogger(MasterDictionaryService.class);
+    private static final Logger log = LoggerFactory.getLogger(MasterDictionaryService.class);
     private static final Pattern LANGUAGE_CODE_PATTERN = Pattern.compile("^[a-z]{2}-[A-Z]{2}$");
 
     private Map<String, List<DictionaryEntry>> masterDictionary = new HashMap<>();
@@ -73,7 +73,7 @@ public class MasterDictionaryService {
             }
         }
         this.masterDictionary = newDictionary;
-        logger.info("Uploaded and loaded {} entries into master dictionary.", masterDictionary.size());
+        log.info("Uploaded and loaded {} entries into master dictionary.", masterDictionary.size());
         var result = new ArrayList<>(importedLanguages);
         Collections.sort(result);
         return result;
@@ -87,22 +87,16 @@ public class MasterDictionaryService {
      */
     public Map<String, List<DictionaryEntry>> load(String targetLanguageCode) {
         if (masterDictionary.isEmpty()) {
-            logger.warn("Master dictionary is empty. No translations will be enriched with context.");
+            log.warn("Master dictionary is empty. No translations will be enriched with context.");
             return Collections.emptyMap();
         }
 
-        var filteredDictionary = new HashMap<String, List<DictionaryEntry>>();
-        for (var entry : masterDictionary.entrySet()) {
-            var entries = entry.getValue();
-            var filteredEntries = new ArrayList<DictionaryEntry>();
-            for (var de : entries) {
-                filteredEntries.add(de);
-            }
-            filteredDictionary.put(entry.getKey(), filteredEntries);
-        }
+        // Return a copy to avoid external modification of the master dictionary
+        var result = new HashMap<String, List<DictionaryEntry>>();
+        masterDictionary.forEach((key, value) -> result.put(key, new ArrayList<>(value)));
 
-        logger.info("Providing {} entries from master dictionary for language: {}", filteredDictionary.size(), targetLanguageCode);
-        return filteredDictionary;
+        log.info("Providing {} entries from master dictionary for language: {}", result.size(), targetLanguageCode);
+        return result;
     }
 
     /**

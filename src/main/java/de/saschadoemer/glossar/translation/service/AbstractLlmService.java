@@ -24,7 +24,7 @@ import java.util.stream.Collectors;
  */
 public abstract class AbstractLlmService implements LlmService {
 
-    private static final Logger logger = LoggerFactory.getLogger(AbstractLlmService.class);
+    private static final Logger log = LoggerFactory.getLogger(AbstractLlmService.class);
     private static final String PROMPT_PATH = "/prompts/translation_prompt.txt";
     private final ChatModel model;
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -73,10 +73,10 @@ public abstract class AbstractLlmService implements LlmService {
 
         try {
             var json = response.trim();
+            // Remove markdown code blocks if present
             if (json.startsWith("```json")) {
                 json = json.substring(7);
-            }
-            if (json.startsWith("```")) {
+            } else if (json.startsWith("```")) {
                 json = json.substring(3);
             }
             if (json.endsWith("```")) {
@@ -102,7 +102,7 @@ public abstract class AbstractLlmService implements LlmService {
             
             return result;
         } catch (Exception e) {
-            logger.error("Error parsing LLM response: {}", response, e);
+            log.error("Error parsing LLM response for content='{}': {}", content, response, e);
             var errorResult = new TranslationResult();
             errorResult.setContent(content);
             errorResult.setComments("Error parsing LLM response. Original response: " + response);

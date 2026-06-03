@@ -8,6 +8,7 @@ import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.io.InputStreamReader;
@@ -21,16 +22,29 @@ import java.util.Map;
 @Service
 public class GlossaryServiceImpl implements GlossaryService {
 
-    private static final Logger logger = LoggerFactory.getLogger(GlossaryServiceImpl.class);
+    private static final Logger log = LoggerFactory.getLogger(GlossaryServiceImpl.class);
 
     private final MasterDictionaryService masterDictionaryService;
     private final ExportService exportService;
     private final Map<String, TranslationJob> jobs = new java.util.concurrent.ConcurrentHashMap<>();
 
+    private final String geminiApiKey;
+    private final String geminiModelName;
+    private final String openAiApiKey;
+    private final String openAiModelName;
+
     public GlossaryServiceImpl(MasterDictionaryService masterDictionaryService,
-                               ExportService exportService) {
+                               ExportService exportService,
+                               @Value("${translation.gemini.api-key:}") String geminiApiKey,
+                               @Value("${translation.gemini.model-name:gemini-1.5-pro}") String geminiModelName,
+                               @Value("${translation.openai.api-key:}") String openAiApiKey,
+                               @Value("${translation.openai.model-name:gpt-4o}") String openAiModelName) {
         this.masterDictionaryService = masterDictionaryService;
         this.exportService = exportService;
+        this.geminiApiKey = geminiApiKey;
+        this.geminiModelName = geminiModelName;
+        this.openAiApiKey = openAiApiKey;
+        this.openAiModelName = openAiModelName;
     }
 
     /**
@@ -49,93 +63,103 @@ public class GlossaryServiceImpl implements GlossaryService {
         var job = new TranslationJob(jobId, targetLanguage);
         jobs.put(jobId, job);
 
-        logger.info("Starting glossary data processing for job {}: language: {} (fuzzy: {}, llm: {}, threshold: {}, waitTime: {}s)",
+        log.info("Starting glossary data processing: jobId={}, targetLanguage={}, fuzzy={}, llmType={}, threshold={}, waitTime={}s",
                 jobId, targetLanguage, fuzzy, llmType, threshold != null ? threshold : "none", waitTime);
 
         LlmService llmService;
-        if ("gemini".equals(llmType)) {
-            var apiKey = System.getenv("GEMINI_API_KEY");
-            if (apiKey == null || apiKey.isEmpty()) {
-                throw new RuntimeException("GEMINI_API_KEY environment variable not set.");
+        try {
+            if ("gemini".equals(llmType)) {
+                if (geminiApiKey == null || geminiApiKey.isEmpty()) {
+                    throw new IllegalStateException("Gemini API key not configured. Please set translation.gemini.api-key");
+                }
+                llmService = new GeminiLlmService(geminiApiKey, geminiModelName);
+            } else {
+                if (openAiApiKey == null || openAiApiKey.isEmpty()) {
+                    throw new IllegalStateException("OpenAI API key not configured. Please set translation.openai.api-key");
+                }
+                llmService = new OpenAiLlmService(openAiApiKey, openAiModelName);
             }
-            llmService = new GeminiLlmService(apiKey);
-        } else {
-            var apiKey = System.getenv("OPENAI_API_KEY");
-            if (apiKey == null || apiKey.isEmpty()) {
-                throw new RuntimeException("OPENAI_API_KEY environment variable not set.");
-            }
-            llmService = new OpenAiLlmService(apiKey);
+        } catch (Exception e) {
+            log.error("Failed to initialize LLM service for jobId={}", jobId, e);
+            job.setError("LLM initialization failed: " + e.getMessage());
+            job.setCompleted(true);
+            return;
         }
 
         var dictionary = masterDictionaryService.load(targetLanguage);
         if (dictionary.isEmpty() && !masterDictionaryService.isMasterDictionarySet()) {
-            logger.error("Master dictionary has not been set.");
+            log.warn("Master dictionary is not set for jobId={}", jobId);
+            job.setError("Master dictionary is not set.");
+            job.setCompleted(true);
             return;
         }
 
         var results = new java.util.ArrayList<TranslationResult>();
 
-        try {
-            var fileBytes = inputStream.readAllBytes();
-            try (var reader = new InputStreamReader(new java.io.ByteArrayInputStream(fileBytes), StandardCharsets.UTF_8);
-                 var csvParser = new CSVParser(reader, CSVFormat.DEFAULT)) {
-                var records = csvParser.getRecords();
-                job.setTotalItems(threshold != null ? Math.min(threshold, records.size()) : records.size());
+        try (var reader = new InputStreamReader(inputStream, StandardCharsets.UTF_8);
+             var csvParser = new CSVParser(reader, CSVFormat.DEFAULT)) {
+            var records = csvParser.getRecords();
+            var totalToProcess = threshold != null ? Math.min(threshold, records.size()) : records.size();
+            job.setTotalItems(totalToProcess);
 
-                var count = 0;
-                for (var csvRecord : records) {
-                    if (csvRecord.size() == 0) continue;
-                    var currentId = csvRecord.get(0);
+            log.info("Processing {} records for jobId={}", totalToProcess, jobId);
 
-                    if (threshold != null && count >= threshold) {
-                        logger.info("Threshold reached ({} entries). Stopping.", threshold);
-                        break;
-                    }
+            var count = 0;
+            for (var csvRecord : records) {
+                if (csvRecord.size() == 0) continue;
 
-                    if (count > 0 && waitTime > 0) {
-                        try {
-                            logger.debug("Waiting for {} seconds before next entry...", waitTime);
-                            Thread.sleep(waitTime * 1000L);
-                        } catch (InterruptedException e) {
-                            Thread.currentThread().interrupt();
-                            logger.warn("Wait time interrupted", e);
-                        }
-                    }
-
-                    var result = process(csvRecord, targetLanguage, dictionary, fuzzy, llmService);
-                    if (result != null) {
-                        results.add(result);
-                        job.setResultData(exportService.exportToExcel(results));
-                    }
-                    count++;
-                    job.setProcessedItems(count);
+                if (threshold != null && count >= threshold) {
+                    log.info("Threshold reached ({} entries) for jobId={}. Stopping.", threshold, jobId);
+                    break;
                 }
+
+                if (count > 0 && waitTime > 0) {
+                    try {
+                        log.debug("Waiting for {} seconds before next entry for jobId={}...", waitTime, jobId);
+                        Thread.sleep(waitTime * 1000L);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        log.warn("Wait time interrupted for jobId={}", jobId, e);
+                    }
+                }
+
+                var result = process(csvRecord, targetLanguage, dictionary, fuzzy, llmService);
+                if (result != null) {
+                    results.add(result);
+                    // Update partial results
+                    job.setResultData(exportService.exportToExcel(results));
+                }
+                count++;
+                job.setProcessedItems(count);
             }
         } catch (Exception e) {
-            logger.error("Error during glossary processing", e);
-            job.setError(e.getMessage());
+            log.error("Error during glossary processing for jobId={}", jobId, e);
+            job.setError("Processing failed: " + e.getMessage());
         }
 
         job.setCompleted(true);
 
         if (!results.isEmpty()) {
-            var totalCost = 0.0;
-            var totalDuration = 0L;
-            for (var res : results) {
-                if (res.getCost() != null) totalCost += res.getCost();
-                if (res.getDurationMs() != null) totalDuration += res.getDurationMs();
-            }
-            logger.info("Summary for the whole process:");
-            logger.info("- Total entries processed: {}", results.size());
-            logger.info("- Total cost (rough): ${}", String.format("%.6f", totalCost));
-            logger.info("- Total duration (LLM calls): {}ms ({}s)", totalDuration, totalDuration / 1000.0);
-
+            logProcessSummary(jobId, results);
             job.setResultData(exportService.exportToExcel(results));
         } else {
-            logger.warn("No results to export.");
+            log.warn("No results to export for jobId={}", jobId);
         }
 
-        logger.info("Glossary data processing finished.");
+        log.info("Glossary data processing finished for jobId={}", jobId);
+    }
+
+    private void logProcessSummary(String jobId, List<TranslationResult> results) {
+        var totalCost = 0.0;
+        var totalDuration = 0L;
+        for (var res : results) {
+            if (res.getCost() != null) totalCost += res.getCost();
+            if (res.getDurationMs() != null) totalDuration += res.getDurationMs();
+        }
+        log.info("Summary for jobId={}:", jobId);
+        log.info("- Total entries processed: {}", results.size());
+        log.info("- Total cost (rough): ${}", String.format("%.6f", totalCost));
+        log.info("- Total duration (LLM calls): {}ms ({}s)", totalDuration, totalDuration / 1000.0);
     }
 
     @Override
@@ -151,7 +175,7 @@ public class GlossaryServiceImpl implements GlossaryService {
     private TranslationResult process(CSVRecord record, String targetLanguage, Map<String, List<DictionaryEntry>> dictionary, boolean fuzzy, LlmService llmService) {
         if (record.size() > 0) {
             var entry = record.get(0);
-            logger.debug("[{}] Processing entry: {}", targetLanguage, entry);
+            log.debug("[{}] Processing entry: {}", targetLanguage, entry);
 
             List<DictionaryEntry> matchingEntries;
             if (fuzzy) {
@@ -161,9 +185,9 @@ public class GlossaryServiceImpl implements GlossaryService {
             }
 
             if (matchingEntries != null && !matchingEntries.isEmpty()) {
-                logger.info("[{}] Gathered context for '{}': {} matches found.", targetLanguage, entry, matchingEntries.size());
+                log.info("[{}] Gathered context for '{}': {} matches found.", targetLanguage, entry, matchingEntries.size());
             } else {
-                logger.warn("[{}] No matching entries found for: {}.", targetLanguage, entry);
+                log.warn("[{}] No matching entries found for: {}.", targetLanguage, entry);
             }
 
             return llmService.translate(entry, matchingEntries, targetLanguage);

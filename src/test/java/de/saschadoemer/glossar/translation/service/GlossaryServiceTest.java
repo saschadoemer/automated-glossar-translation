@@ -34,7 +34,7 @@ class GlossaryServiceTest {
     void setUp() {
         masterDictionaryService = mock(MasterDictionaryService.class);
         exportService = mock(ExportService.class);
-        glossaryService = new GlossaryServiceImpl(masterDictionaryService, exportService);
+        glossaryService = new GlossaryServiceImpl(masterDictionaryService, exportService, "test-gemini-key", "gemini-1.5-pro", "test-openai-key", "gpt-4o");
     }
 
     @Test
@@ -46,7 +46,7 @@ class GlossaryServiceTest {
         when(masterDictionaryService.load(anyString())).thenReturn(Collections.emptyMap());
 
         // We need to set up environment variables or mock the LLM service creation.
-        // Since processAll creates the LLM service internally using System.getenv, 
+        // Since processAll creates the LLM service internally using configuration values, 
         // this might be tricky in a unit test without additional refactoring.
         // For now, let's at least verify it doesn't crash if the master dictionary is missing.
     }
@@ -54,7 +54,7 @@ class GlossaryServiceTest {
     void testGetJobStatus() {
         MasterDictionaryService masterDictionaryService = new MasterDictionaryService();
         ExportService exportService = new ExportService();
-        GlossaryServiceImpl service = new GlossaryServiceImpl(masterDictionaryService, exportService);
+        GlossaryServiceImpl service = new GlossaryServiceImpl(masterDictionaryService, exportService, "test-gemini-key", "gemini-1.5-pro", "test-openai-key", "gpt-4o");
         
         assertNull(service.getJobStatus("non-existent"));
     }
