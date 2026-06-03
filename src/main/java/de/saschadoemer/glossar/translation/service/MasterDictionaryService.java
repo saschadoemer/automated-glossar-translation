@@ -12,9 +12,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.stereotype.Service;
+
 /**
  * Service to load the master dictionary from Excel.
  */
+@Service
 public class MasterDictionaryService {
 
     private static final Logger logger = LoggerFactory.getLogger(MasterDictionaryService.class);

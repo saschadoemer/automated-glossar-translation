@@ -8,9 +8,12 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
+import org.springframework.stereotype.Service;
+
 /**
  * Service to manage the application state for resuming.
  */
+@Service
 public class StateService {
 
     private static final Logger logger = LoggerFactory.getLogger(StateService.class);
