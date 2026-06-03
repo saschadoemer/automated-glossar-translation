@@ -1,0 +1,13 @@
+spring:
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 50MB
+
+translation:
+  gemini:
+    api-key: ${GEMINI_API_KEY:}
+    model-name: ${GEMINI_MODEL_NAME:}
+  openai:
+    api-key: ${OPENAI_API_KEY:}
+    model-name: ${OPENAI_MODEL_NAME:}
