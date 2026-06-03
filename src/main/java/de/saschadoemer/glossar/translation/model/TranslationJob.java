@@ -8,7 +8,7 @@ public class TranslationJob {
     private final String targetLanguage;
     private int totalItems;
     private int processedItems;
-    private String resultFilePath;
+    private byte[] resultData;
     private boolean completed;
     private String error;
 
@@ -42,12 +42,12 @@ public class TranslationJob {
         this.processedItems = processedItems;
     }
 
-    public String getResultFilePath() {
-        return resultFilePath;
+    public byte[] getResultData() {
+        return resultData;
     }
-
-    public void setResultFilePath(String resultFilePath) {
-        this.resultFilePath = resultFilePath;
+    
+    public void setResultData(byte[] resultData) {
+        this.resultData = resultData;
     }
 
     public boolean isCompleted() {

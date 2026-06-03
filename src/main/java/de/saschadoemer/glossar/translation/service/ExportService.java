@@ -6,8 +6,6 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
-import java.io.FileOutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -25,15 +23,16 @@ public class ExportService {
     private static final Logger logger = LoggerFactory.getLogger(ExportService.class);
 
     /**
-     * Exports translation results to an Excel file.
+     * Exports translation results to an Excel byte array.
      *
-     * @param results  The results to export.
-     * @param filePath The path to the output file.
+     * @param results The results to export.
+     * @return The Excel file as a byte array.
      */
-    public void exportToExcel(List<TranslationResult> results, String filePath) {
-        logger.info("Exporting {} results to {}", results.size(), filePath);
+    public byte[] exportToExcel(List<TranslationResult> results) {
+        logger.info("Exporting {} results to memory", results.size());
 
-        try (var workbook = new XSSFWorkbook()) {
+        try (var workbook = new XSSFWorkbook();
+             var bos = new java.io.ByteArrayOutputStream()) {
             var sheet = workbook.createSheet("Glossary Results");
 
             var headerRow = sheet.createRow(0);
@@ -83,13 +82,12 @@ public class ExportService {
                 sheet.autoSizeColumn(i);
             }
 
-            try (var fileOut = new FileOutputStream(filePath)) {
-                workbook.write(fileOut);
-            }
-
+            workbook.write(bos);
             logger.info("Export finished successfully.");
+            return bos.toByteArray();
         } catch (Exception e) {
             logger.error("Error during Excel export", e);
+            return new byte[0];
         }
     }
 
@@ -97,78 +95,4 @@ public class ExportService {
         return value == null ? "" : value;
     }
 
-    /**
-     * Loads translation results from an Excel file.
-     *
-     * @param filePath The path to the Excel file.
-     * @return The list of translation results.
-     */
-    public List<TranslationResult> loadFromExcel(String filePath) {
-        var results = new ArrayList<TranslationResult>();
-        var file = new File(filePath);
-        if (!file.exists()) {
-            return results;
-        }
-
-        logger.info("Loading previous results from {}", filePath);
-        try (var workbook = new XSSFWorkbook(file)) {
-            var sheet = workbook.getSheetAt(0);
-            var headerRow = sheet.getRow(0);
-            if (headerRow == null) return results;
-
-            var headerMap = new HashMap<String, Integer>();
-            for (var cell : headerRow) {
-                headerMap.put(cell.getStringCellValue(), cell.getColumnIndex());
-            }
-
-            for (var i = 1; i <= sheet.getLastRowNum(); i++) {
-                var row = sheet.getRow(i);
-                if (row == null) continue;
-
-                var result = new TranslationResult();
-                result.setContent(getCellValue(row, headerMap.get("Content")));
-                result.setTranslationWithContext(getCellValue(row, headerMap.get("Translation with Context")));
-                result.setConfidence(getCellDoubleValue(row, headerMap.get("Confidence")));
-                result.setTranslationWithoutContext(getCellValue(row, headerMap.get("Translation without Context")));
-                
-                var synonymsStr = getCellValue(row, headerMap.get("Synonyms"));
-                if (synonymsStr != null && !synonymsStr.isEmpty()) {
-                    result.setSynonyms(Arrays.asList(synonymsStr.split(", ")));
-                }
-                
-                result.setComments(getCellValue(row, headerMap.get("Comments")));
-                result.setCost(getCellDoubleValue(row, headerMap.get("Cost")));
-                result.setDurationMs(getCellLongValue(row, headerMap.get("Duration (ms)")));
-
-                results.add(result);
-            }
-            logger.info("Loaded {} results from existing file.", results.size());
-        } catch (Exception e) {
-            logger.warn("Could not load previous results from {}: {}", filePath, e.getMessage());
-        }
-        return results;
-    }
-
-    private String getCellValue(Row row, Integer index) {
-        if (index == null) return null;
-        var cell = row.getCell(index);
-        if (cell == null) return null;
-        if (cell.getCellType() == CellType.STRING) return cell.getStringCellValue();
-        if (cell.getCellType() == CellType.NUMERIC) return String.valueOf(cell.getNumericCellValue());
-        return null;
-    }
-
-    private Double getCellDoubleValue(Row row, Integer index) {
-        if (index == null) return null;
-        var cell = row.getCell(index);
-        if (cell == null || cell.getCellType() != CellType.NUMERIC) return null;
-        return cell.getNumericCellValue();
-    }
-
-    private Long getCellLongValue(Row row, Integer index) {
-        if (index == null) return null;
-        var cell = row.getCell(index);
-        if (cell == null || cell.getCellType() != CellType.NUMERIC) return null;
-        return (long) cell.getNumericCellValue();
-    }
 }

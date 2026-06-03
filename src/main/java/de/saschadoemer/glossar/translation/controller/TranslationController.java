@@ -8,7 +8,7 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -18,7 +18,6 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.ByteArrayInputStream;
-import java.io.File;
 import java.io.IOException;
 import java.util.Map;
 import java.util.UUID;
@@ -124,16 +123,17 @@ public class TranslationController {
                         .body("Error: Translation job failed: " + job.getError());
             }
 
-            var file = new File(job.getResultFilePath());
-            if (file.exists()) {
-                Resource resource = new FileSystemResource(file);
+            var resultData = job.getResultData();
+            if (resultData != null && resultData.length > 0) {
+                var resource = new ByteArrayResource(resultData);
+                var filename = "glossary-translation-" + jobId + "-" + job.getTargetLanguage().toLowerCase() + ".xlsx";
                 return ResponseEntity.ok()
-                        .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + file.getName() + "\"")
+                        .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
                         .contentType(MediaType.APPLICATION_OCTET_STREAM)
                         .body(resource);
             } else {
                 return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                        .body("Error: Result file not found.");
+                        .body("Error: Result data not found.");
             }
         } else {
             return ResponseEntity.status(HttpStatus.ACCEPTED).body(Map.of(

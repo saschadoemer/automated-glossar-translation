@@ -5,11 +5,11 @@ meta {
 }
 
 post {
-  url: http://localhost:8080/api/translation/master-dictionary/upload
+  url: {{baseUrl}}/master-dictionary/upload
   body: multipartForm
   auth: none
 }
 
 body:multipart-form {
-  file: @file()
+  file: @file(/Users/sdo/Git/glossar-translation/local-data/master-dictonary.xlsx)
 }

@@ -5,14 +5,14 @@ meta {
 }
 
 post {
-  url: http://localhost:8080/api/translation/start
+  url: {{baseUrl}}/start
   body: multipartForm
   auth: none
 }
 
 body:multipart-form {
-  file: @file()
-  targetLanguage: en-US
+  file: @file(/Users/sdo/Git/glossar-translation/local-data/glossar-master-data.csv)
+  targetLanguage: es-ES
   fuzzy: false
   llmType: gemini
   waitTime: 3

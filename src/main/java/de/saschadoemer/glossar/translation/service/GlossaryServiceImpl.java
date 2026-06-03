@@ -25,15 +25,12 @@ public class GlossaryServiceImpl implements GlossaryService {
 
     private final MasterDictionaryService masterDictionaryService;
     private final ExportService exportService;
-    private final StateService stateService;
     private final Map<String, TranslationJob> jobs = new java.util.concurrent.ConcurrentHashMap<>();
 
     public GlossaryServiceImpl(MasterDictionaryService masterDictionaryService,
-                               ExportService exportService,
-                               StateService stateService) {
+                               ExportService exportService) {
         this.masterDictionaryService = masterDictionaryService;
         this.exportService = exportService;
-        this.stateService = stateService;
     }
 
     /**
@@ -51,9 +48,6 @@ public class GlossaryServiceImpl implements GlossaryService {
     public void processAll(String jobId, java.io.InputStream inputStream, String targetLanguage, boolean fuzzy, String llmType, Integer threshold, int waitTime) {
         var job = new TranslationJob(jobId, targetLanguage);
         jobs.put(jobId, job);
-
-        var outputFile = "glossary-translation-" + jobId + "-" + targetLanguage.toLowerCase() + ".xlsx";
-        job.setResultFilePath(outputFile);
 
         logger.info("Starting glossary data processing for job {}: language: {} (fuzzy: {}, llm: {}, threshold: {}, waitTime: {}s)",
                 jobId, targetLanguage, fuzzy, llmType, threshold != null ? threshold : "none", waitTime);
@@ -79,9 +73,7 @@ public class GlossaryServiceImpl implements GlossaryService {
             return;
         }
 
-        var results = exportService.loadFromExcel(outputFile);
-        var lastProcessedId = stateService.loadLastProcessedId(targetLanguage);
-        var skipping = lastProcessedId != null;
+        var results = new java.util.ArrayList<TranslationResult>();
 
         try {
             var fileBytes = inputStream.readAllBytes();
@@ -91,21 +83,12 @@ public class GlossaryServiceImpl implements GlossaryService {
                 job.setTotalItems(threshold != null ? Math.min(threshold, records.size()) : records.size());
 
                 var count = 0;
-                var thresholdReached = false;
                 for (var csvRecord : records) {
                     if (csvRecord.size() == 0) continue;
                     var currentId = csvRecord.get(0);
 
-                    if (skipping) {
-                        if (currentId.equals(lastProcessedId)) {
-                            skipping = false;
-                        }
-                        continue;
-                    }
-
                     if (threshold != null && count >= threshold) {
                         logger.info("Threshold reached ({} entries). Stopping.", threshold);
-                        thresholdReached = true;
                         break;
                     }
 
@@ -122,17 +105,10 @@ public class GlossaryServiceImpl implements GlossaryService {
                     var result = process(csvRecord, targetLanguage, dictionary, fuzzy, llmService);
                     if (result != null) {
                         results.add(result);
-                        stateService.saveLastProcessedId(currentId, targetLanguage);
-                        exportService.exportToExcel(results, outputFile);
+                        job.setResultData(exportService.exportToExcel(results));
                     }
                     count++;
                     job.setProcessedItems(count);
-                }
-
-                if (!thresholdReached && !skipping) {
-                    stateService.clear(targetLanguage);
-                } else if (skipping) {
-                    logger.warn("Last processed ID '{}' not found in CSV. Resume failed.", lastProcessedId);
                 }
             }
         } catch (Exception e) {
@@ -154,7 +130,7 @@ public class GlossaryServiceImpl implements GlossaryService {
             logger.info("- Total cost (rough): ${}", String.format("%.6f", totalCost));
             logger.info("- Total duration (LLM calls): {}ms ({}s)", totalDuration, totalDuration / 1000.0);
 
-            exportService.exportToExcel(results, outputFile);
+            job.setResultData(exportService.exportToExcel(results));
         } else {
             logger.warn("No results to export.");
         }

@@ -29,14 +29,12 @@ class GlossaryServiceTest {
     private GlossaryServiceImpl glossaryService;
     private MasterDictionaryService masterDictionaryService;
     private ExportService exportService;
-    private StateService stateService;
 
     @BeforeEach
     void setUp() {
         masterDictionaryService = mock(MasterDictionaryService.class);
         exportService = mock(ExportService.class);
-        stateService = mock(StateService.class);
-        glossaryService = new GlossaryServiceImpl(masterDictionaryService, exportService, stateService);
+        glossaryService = new GlossaryServiceImpl(masterDictionaryService, exportService);
     }
 
     @Test
@@ -56,8 +54,7 @@ class GlossaryServiceTest {
     void testGetJobStatus() {
         MasterDictionaryService masterDictionaryService = new MasterDictionaryService();
         ExportService exportService = new ExportService();
-        StateService stateService = new StateService();
-        GlossaryServiceImpl service = new GlossaryServiceImpl(masterDictionaryService, exportService, stateService);
+        GlossaryServiceImpl service = new GlossaryServiceImpl(masterDictionaryService, exportService);
         
         assertNull(service.getJobStatus("non-existent"));
     }
