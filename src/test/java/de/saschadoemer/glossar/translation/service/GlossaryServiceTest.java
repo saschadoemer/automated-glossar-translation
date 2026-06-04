@@ -23,9 +23,8 @@ class GlossaryServiceTest {
     }
 
     @Test
-    void testProcessAllWithEmptyFile() throws IOException {
-        ByteArrayInputStream inputStream = new ByteArrayInputStream("".getBytes(StandardCharsets.UTF_8));
-        
+    void testProcessAllWithEmptyFile() {
+
         // Mock master dictionary to be set
         when(masterDictionaryService.isMasterDictionarySet()).thenReturn(true);
         when(masterDictionaryService.load(anyString())).thenReturn(Collections.emptyMap());

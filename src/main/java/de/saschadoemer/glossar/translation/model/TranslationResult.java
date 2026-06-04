@@ -91,11 +91,27 @@ public class TranslationResult {
     }
 
     /**
+     * Sets the translation without context.
+     * @param translationWithoutContext the translation.
+     */
+    public void setTranslationWithoutContext(String translationWithoutContext) {
+        this.translationWithoutContext = translationWithoutContext;
+    }
+
+    /**
      * Returns the list of synonyms.
      * @return the synonyms.
      */
     public List<String> getSynonyms() {
         return synonyms;
+    }
+
+    /**
+     * Sets the list of synonyms.
+     * @param synonyms the synonyms.
+     */
+    public void setSynonyms(List<String> synonyms) {
+        this.synonyms = synonyms;
     }
 
     /**
