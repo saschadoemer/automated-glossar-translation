@@ -1,0 +1,12 @@
+target/*
+!target/*.jar
+*.iml
+.idea/
+.git/
+.gitignore
+local-data/
+bruno/
+local.env
+README.md
+Dockerfile
+.github/

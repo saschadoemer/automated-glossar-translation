@@ -11,8 +11,8 @@
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
 
-    <groupId>com.agrirouter.api</groupId>
-    <artifactId>glossar-erstellung-auf-basis-masterwoerterbuch</artifactId>
+    <groupId>de.saschadoemer</groupId>
+    <artifactId>context-based-glossar-translation</artifactId>
     <version>1.0-SNAPSHOT</version>
 
     <properties>
