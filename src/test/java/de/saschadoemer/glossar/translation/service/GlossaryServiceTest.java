@@ -15,15 +15,11 @@ import static org.mockito.Mockito.when;
 
 class GlossaryServiceTest {
 
-    private GlossaryServiceImpl glossaryService;
     private MasterDictionaryService masterDictionaryService;
-    private ExportService exportService;
 
     @BeforeEach
     void setUp() {
         masterDictionaryService = mock(MasterDictionaryService.class);
-        exportService = mock(ExportService.class);
-        glossaryService = new GlossaryServiceImpl(masterDictionaryService, exportService, "test-gemini-key", "gemini-1.5-pro", "test-openai-key", "gpt-4o");
     }
 
     @Test
