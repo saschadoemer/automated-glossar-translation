@@ -58,7 +58,7 @@ class MasterDictionaryServiceTest {
         Map<String, List<DictionaryEntry>> loaded = masterDictionaryService.load("en-US");
         
         assertTrue(loaded.containsKey("TERM1"));
-        DictionaryEntry entry = loaded.get("TERM1").get(0);
+        DictionaryEntry entry = loaded.get("TERM1").getFirst();
         assertEquals("Begriff 1", entry.getGerman());
         assertEquals("Term 1", entry.getTranslation("en-US"));
         assertEquals("Terme 1", entry.getTranslation("fr-FR"));
