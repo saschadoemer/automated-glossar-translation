@@ -99,14 +99,6 @@ public class TranslationResult {
     }
 
     /**
-     * Sets the list of synonyms.
-     * @param synonyms the synonyms.
-     */
-    public void setSynonyms(List<String> synonyms) {
-        this.synonyms = synonyms;
-    }
-
-    /**
      * Returns any comments or notes.
      * @return the comments.
      */
