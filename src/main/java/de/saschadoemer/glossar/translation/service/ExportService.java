@@ -1,18 +1,12 @@
 package de.saschadoemer.glossar.translation.service;
 
 import de.saschadoemer.glossar.translation.model.TranslationResult;
-import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
 import org.springframework.stereotype.Service;
+
+import java.util.List;
 
 /**
  * Service to export translation results.
