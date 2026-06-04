@@ -66,9 +66,9 @@ public class MasterDictionaryService {
                         }
 
                         var entry = new DictionaryEntry(identifier, german, translations);
-                        newDictionary.computeIfAbsent(identifier, k -> new ArrayList<>()).add(entry);
+                        newDictionary.computeIfAbsent(identifier, _ -> new ArrayList<>()).add(entry);
                         if (german != null && !german.isEmpty() && !german.equals(identifier)) {
-                            newDictionary.computeIfAbsent(german, k -> new ArrayList<>()).add(entry);
+                            newDictionary.computeIfAbsent(german, _ -> new ArrayList<>()).add(entry);
                         }
                     }
                 }
