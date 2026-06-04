@@ -43,14 +43,6 @@ public class DictionaryEntry {
     }
 
     /**
-     * Returns all available translations.
-     * @return a map of language codes to translations.
-     */
-    public Map<String, String> getTranslations() {
-        return translations;
-    }
-
-    /**
      * Returns the translation for a specific language code.
      * @param languageCode the language code to look for.
      * @return the translation, or null if not found.
