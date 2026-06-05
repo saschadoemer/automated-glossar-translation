@@ -100,6 +100,7 @@ public class TranslationResult {
      * Sets the translation without context.
      * @param translationWithoutContext the translation.
      */
+    @SuppressWarnings("unused")
     public void setTranslationWithoutContext(String translationWithoutContext) {
         this.translationWithoutContext = translationWithoutContext;
     }
@@ -116,6 +117,7 @@ public class TranslationResult {
      * Sets the list of synonyms.
      * @param synonyms the synonyms.
      */
+    @SuppressWarnings("unused")
     public void setSynonyms(List<String> synonyms) {
         this.synonyms = synonyms;
     }
