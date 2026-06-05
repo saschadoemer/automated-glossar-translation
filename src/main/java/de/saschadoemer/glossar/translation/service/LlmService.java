@@ -113,10 +113,12 @@ public class LlmService {
 
             return result;
         } catch (Exception e) {
-            log.error("Error parsing LLM response for content='{}': {}", content, response, e);
+            var safeResponse = response == null ? "" : response;
+            var truncatedResponse = safeResponse.length() > 2000 ? safeResponse.substring(0, 2000) + "...[truncated]" : safeResponse;
+            log.error("Error parsing LLM response for content='{}': {}", content, truncatedResponse, e);
             var errorResult = new TranslationResult();
             errorResult.setContent(content);
-            errorResult.setComments("Error parsing LLM response. Original response: " + response);
+            errorResult.setComments("Error parsing LLM response.");
             errorResult.setDurationMs(durationMs);
             if (usage != null) {
                 errorResult.setInputTokens(usage.inputTokenCount());
