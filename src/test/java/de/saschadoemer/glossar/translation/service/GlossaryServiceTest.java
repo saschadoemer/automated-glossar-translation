@@ -35,7 +35,7 @@ class GlossaryServiceTest {
     void testGetJobStatus() {
         MasterDictionaryService masterDictionaryService = new MasterDictionaryService();
         ExportService exportService = new ExportService();
-        GlossaryServiceImpl service = new GlossaryServiceImpl(masterDictionaryService, exportService, "test-openrouter-key", "google/gemini-pro-1.5");
+        GlossaryService service = new GlossaryService(masterDictionaryService, exportService, "test-openrouter-key", "google/gemini-pro-1.5");
         
         assertNull(service.getJobStatus("non-existent"));
     }
