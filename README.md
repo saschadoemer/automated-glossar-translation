@@ -23,7 +23,7 @@ The application can be configured via environment variables or by modifying `src
 | Environment Variable | Description | Default |
 |----------------------|-------------|---------|
 | `OPENROUTER_API_KEY` | Your OpenRouter API key | -       |
-| `OPENROUTER_MODEL_NAME` | OpenRouter model to use | `google/gemini-pro-1.5` |
+| `OPENROUTER_MODEL_NAME` | OpenRouter model to use | - |
 
 ## Getting Started
 

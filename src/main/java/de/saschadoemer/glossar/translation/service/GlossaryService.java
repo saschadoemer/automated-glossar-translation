@@ -62,10 +62,10 @@ public class GlossaryService {
             return;
         }
 
-        var client = HttpClient.newBuilder()
+        try (var client = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(10))
-                .build();
-        try {
+                .build()) {
+            var request = HttpRequest.newBuilder()
                     .uri(URI.create("https://openrouter.ai/api/v1/models"))
                     .header("Authorization", "Bearer " + openRouterApiKey)
                     .timeout(Duration.ofSeconds(30))
