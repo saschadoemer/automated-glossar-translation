@@ -28,8 +28,14 @@ public class TranslationResult {
     @Schema(description = "Additional comments or notes from the LLM")
     private String comments;
 
-    @Schema(description = "Rough cost of the translation in USD", example = "0.000123")
-    private Double cost;
+    @Schema(description = "Number of input tokens used", example = "42")
+    private Integer inputTokens;
+
+    @Schema(description = "Number of output tokens used", example = "15")
+    private Integer outputTokens;
+
+    @Schema(description = "Total number of tokens used", example = "57")
+    private Integer totalTokens;
 
     @Schema(description = "Duration of the LLM call in milliseconds", example = "1200")
     private Long durationMs;
@@ -133,19 +139,51 @@ public class TranslationResult {
     }
 
     /**
-     * Returns the cost of the translation.
-     * @return the cost.
+     * Returns the number of input tokens.
+     * @return the input tokens.
      */
-    public Double getCost() {
-        return cost;
+    public Integer getInputTokens() {
+        return inputTokens;
     }
 
     /**
-     * Sets the cost of the translation.
-     * @param cost the cost.
+     * Sets the number of input tokens.
+     * @param inputTokens the input tokens.
      */
-    public void setCost(Double cost) {
-        this.cost = cost;
+    public void setInputTokens(Integer inputTokens) {
+        this.inputTokens = inputTokens;
+    }
+
+    /**
+     * Returns the number of output tokens.
+     * @return the output tokens.
+     */
+    public Integer getOutputTokens() {
+        return outputTokens;
+    }
+
+    /**
+     * Sets the number of output tokens.
+     * @param outputTokens the output tokens.
+     */
+    public void setOutputTokens(Integer outputTokens) {
+        this.outputTokens = outputTokens;
+    }
+
+    /**
+     * Returns the total number of tokens.
+     * @return the total tokens.
+     */
+    public Integer getTotalTokens() {
+        return totalTokens;
+    }
+
+    /**
+     * Sets the total number of tokens.
+     * @param totalTokens the total tokens.
+     */
+    public void setTotalTokens(Integer totalTokens) {
+        this.totalTokens = totalTokens;
     }
 
     /**
@@ -175,7 +213,9 @@ public class TranslationResult {
         sb.append("4) Translation (without context): ").append(translationWithoutContext).append("\n");
         sb.append("5) Synonyms: ").append(synonyms != null ? String.join(", ", synonyms) : "none").append("\n");
         sb.append("6) Comments: ").append(comments).append("\n");
-        sb.append("7) Cost: ").append(cost != null ? String.format("%.6f", cost) : "unknown").append("\n");
+        sb.append("7) Tokens: input=").append(inputTokens != null ? inputTokens : "unknown")
+          .append(", output=").append(outputTokens != null ? outputTokens : "unknown")
+          .append(", total=").append(totalTokens != null ? totalTokens : "unknown").append("\n");
         sb.append("8) Duration: ").append(durationMs != null ? durationMs + "ms" : "unknown").append("\n");
         return sb.toString();
     }

@@ -93,7 +93,9 @@ public abstract class AbstractLlmService implements LlmService {
             
             result.setDurationMs(durationMs);
             if (usage != null) {
-                result.setCost(calculateCost(usage.inputTokenCount(), usage.outputTokenCount()));
+                result.setInputTokens(usage.inputTokenCount());
+                result.setOutputTokens(usage.outputTokenCount());
+                result.setTotalTokens(usage.totalTokenCount());
             }
             
             return result;
@@ -104,18 +106,12 @@ public abstract class AbstractLlmService implements LlmService {
             errorResult.setComments("Error parsing LLM response. Original response: " + response);
             errorResult.setDurationMs(durationMs);
             if (usage != null) {
-                errorResult.setCost(calculateCost(usage.inputTokenCount(), usage.outputTokenCount()));
+                errorResult.setInputTokens(usage.inputTokenCount());
+                errorResult.setOutputTokens(usage.outputTokenCount());
+                errorResult.setTotalTokens(usage.totalTokenCount());
             }
             return errorResult;
         }
     }
 
-    /**
-     * Calculates the cost based on token usage.
-     *
-     * @param inputTokens  Number of input tokens.
-     * @param outputTokens Number of output tokens.
-     * @return The calculated cost.
-     */
-    protected abstract double calculateCost(int inputTokens, int outputTokens);
 }

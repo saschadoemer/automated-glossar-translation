@@ -45,7 +45,6 @@ public class TranslationController {
      * @param file           The CSV file containing terms to translate.
      * @param targetLanguage The language code to translate the terms into.
      * @param fuzzy          Whether to use fuzzy matching for dictionary lookups.
-     * @param llmType        The type of LLM to use (e.g., "gemini" or "openai").
      * @param threshold      Optional threshold for the number of terms to process.
      * @param waitTime       Time in seconds to wait between LLM calls.
      * @return A response entity with the unique job ID.
@@ -66,12 +65,11 @@ public class TranslationController {
             @Parameter(description = "CSV file with terms", required = true) @RequestParam("file") MultipartFile file,
             @Parameter(description = "Target language code (e.g., en-US)", required = true) @RequestParam String targetLanguage,
             @Parameter(description = "Enable fuzzy matching") @RequestParam(required = false, defaultValue = "false") boolean fuzzy,
-            @Parameter(description = "LLM provider type") @RequestParam(required = false, defaultValue = "gemini") String llmType,
             @Parameter(description = "Limit number of processed entries") @RequestParam(required = false) Integer threshold,
             @Parameter(description = "Wait time between requests in seconds") @RequestParam(required = false, defaultValue = "3") int waitTime) {
 
-        log.info("Start translation request received: targetLanguage={}, fuzzy={}, llmType={}, threshold={}, waitTime={}",
-                targetLanguage, fuzzy, llmType, threshold, waitTime);
+        log.info("Start translation request received: targetLanguage={}, fuzzy={}, threshold={}, waitTime={}",
+                targetLanguage, fuzzy, threshold, waitTime);
 
         if (file.isEmpty()) {
             log.warn("Start translation failed: Uploaded file is empty");
@@ -91,7 +89,7 @@ public class TranslationController {
 
             CompletableFuture.runAsync(() -> {
                 try (var bais = new ByteArrayInputStream(fileBytes)) {
-                    glossaryService.processAll(jobId, bais, targetLanguage, fuzzy, llmType, threshold, waitTime);
+                    glossaryService.processAll(jobId, bais, targetLanguage, fuzzy, threshold, waitTime);
                 } catch (IOException e) {
                     log.error("Error processing translation input for jobId={}", jobId, e);
                     throw new RuntimeException("Error processing translation input", e);

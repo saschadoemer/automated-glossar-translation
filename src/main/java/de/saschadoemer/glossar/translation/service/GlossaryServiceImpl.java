@@ -3,16 +3,25 @@ package de.saschadoemer.glossar.translation.service;
 import de.saschadoemer.glossar.translation.model.DictionaryEntry;
 import de.saschadoemer.glossar.translation.model.TranslationJob;
 import de.saschadoemer.glossar.translation.model.TranslationResult;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.event.ContextRefreshedEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 
 import java.io.InputStreamReader;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 
@@ -28,23 +37,69 @@ public class GlossaryServiceImpl implements GlossaryService {
     private final ExportService exportService;
     private final Map<String, TranslationJob> jobs = new java.util.concurrent.ConcurrentHashMap<>();
 
-    private final String geminiApiKey;
-    private final String geminiModelName;
-    private final String openAiApiKey;
-    private final String openAiModelName;
+    private final String openRouterApiKey;
+    private final String openRouterModelName;
 
     public GlossaryServiceImpl(MasterDictionaryService masterDictionaryService,
                                ExportService exportService,
-                               @Value("${translation.gemini.api-key:}") String geminiApiKey,
-                               @Value("${translation.gemini.model-name:gemini-1.5-pro}") String geminiModelName,
-                               @Value("${translation.openai.api-key:}") String openAiApiKey,
-                               @Value("${translation.openai.model-name:gpt-4o}") String openAiModelName) {
+                               @Value("${translation.openrouter.api-key:}") String openRouterApiKey,
+                               @Value("${translation.openrouter.model-name:}") String openRouterModelName) {
         this.masterDictionaryService = masterDictionaryService;
         this.exportService = exportService;
-        this.geminiApiKey = geminiApiKey;
-        this.geminiModelName = geminiModelName;
-        this.openAiApiKey = openAiApiKey;
-        this.openAiModelName = openAiModelName;
+        this.openRouterApiKey = openRouterApiKey;
+        this.openRouterModelName = openRouterModelName;
+    }
+
+    /**
+     * Verifies the availability of the configured OpenRouter model on startup.
+     * This method is triggered when the application context is refreshed.
+     */
+    @EventListener(ContextRefreshedEvent.class)
+    public void verifyModelAvailability() {
+        log.info("Checking OpenRouter model availability: model={}", openRouterModelName);
+        if (openRouterApiKey == null || openRouterApiKey.isEmpty()) {
+            log.warn("OpenRouter API key is not configured. Model availability check skipped.");
+            return;
+        }
+
+        try (var client = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(10))
+                .build()) {
+            var request = HttpRequest.newBuilder()
+                    .uri(URI.create("https://openrouter.ai/api/v1/models"))
+                    .header("Authorization", "Bearer " + openRouterApiKey)
+                    .timeout(Duration.ofSeconds(30))
+                    .GET()
+                    .build();
+
+            var response = client.send(request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() == 200) {
+                var objectMapper = new ObjectMapper();
+                var root = objectMapper.readTree(response.body());
+                var data = root.path("data");
+                var found = false;
+                if (data.isArray()) {
+                    for (JsonNode model : data) {
+                        if (openRouterModelName.equals(model.path("id").asText())) {
+                            found = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (found) {
+                    log.info("OpenRouter model '{}' is available and verified.", openRouterModelName);
+                } else {
+                    log.warn("OpenRouter model '{}' was not found in the list of available models. Please check the model name.", openRouterModelName);
+                }
+            } else if (response.statusCode() == 401) {
+                log.error("OpenRouter API key is invalid or unauthorized (401).");
+            } else {
+                log.error("Failed to verify model availability. OpenRouter API returned status: {}", response.statusCode());
+            }
+        } catch (Exception e) {
+            log.error("An error occurred while verifying OpenRouter model availability", e);
+        }
     }
 
     /**
@@ -54,31 +109,23 @@ public class GlossaryServiceImpl implements GlossaryService {
      * @param inputStream    The input stream containing terms.
      * @param targetLanguage The target language for translation.
      * @param fuzzy          Whether to use fuzzy matching.
-     * @param llmType        The LLM provider type.
      * @param threshold      Maximum number of records to process.
      * @param waitTime       Wait time in seconds between records.
      */
     @Override
-    public void processAll(String jobId, java.io.InputStream inputStream, String targetLanguage, boolean fuzzy, String llmType, Integer threshold, int waitTime) {
+    public void processAll(String jobId, java.io.InputStream inputStream, String targetLanguage, boolean fuzzy, Integer threshold, int waitTime) {
         var job = new TranslationJob(jobId, targetLanguage);
         jobs.put(jobId, job);
 
-        log.info("Starting glossary data processing: jobId={}, targetLanguage={}, fuzzy={}, llmType={}, threshold={}, waitTime={}s",
-                jobId, targetLanguage, fuzzy, llmType, threshold != null ? threshold : "none", waitTime);
+        log.info("Starting glossary data processing: jobId={}, targetLanguage={}, fuzzy={}, model={}, threshold={}, waitTime={}s",
+                jobId, targetLanguage, fuzzy, openRouterModelName, threshold != null ? threshold : "none", waitTime);
 
         LlmService llmService;
         try {
-            if ("gemini".equals(llmType)) {
-                if (geminiApiKey == null || geminiApiKey.isEmpty()) {
-                    throw new IllegalStateException("Gemini API key not configured. Please set translation.gemini.api-key");
-                }
-                llmService = new GeminiLlmService(geminiApiKey, geminiModelName);
-            } else {
-                if (openAiApiKey == null || openAiApiKey.isEmpty()) {
-                    throw new IllegalStateException("OpenAI API key not configured. Please set translation.openai.api-key");
-                }
-                llmService = new OpenAiLlmService(openAiApiKey, openAiModelName);
+            if (openRouterApiKey == null || openRouterApiKey.isEmpty()) {
+                throw new IllegalStateException("OpenRouter API key not configured. Please set translation.openrouter.api-key");
             }
+            llmService = new OpenRouterLlmService(openRouterApiKey, openRouterModelName);
         } catch (Exception e) {
             log.error("Failed to initialize LLM service for jobId={}", jobId, e);
             job.setError("LLM initialization failed: " + e.getMessage());
@@ -150,15 +197,19 @@ public class GlossaryServiceImpl implements GlossaryService {
     }
 
     private void logProcessSummary(String jobId, List<TranslationResult> results) {
-        var totalCost = 0.0;
+        var totalInputTokens = 0;
+        var totalOutputTokens = 0;
+        var totalTokens = 0;
         var totalDuration = 0L;
         for (var res : results) {
-            if (res.getCost() != null) totalCost += res.getCost();
+            if (res.getInputTokens() != null) totalInputTokens += res.getInputTokens();
+            if (res.getOutputTokens() != null) totalOutputTokens += res.getOutputTokens();
+            if (res.getTotalTokens() != null) totalTokens += res.getTotalTokens();
             if (res.getDurationMs() != null) totalDuration += res.getDurationMs();
         }
         log.info("Summary for jobId={}:", jobId);
         log.info("- Total entries processed: {}", results.size());
-        log.info("- Total cost (rough): ${}", String.format("%.6f", totalCost));
+        log.info("- Total tokens: {} (input: {}, output: {})", totalTokens, totalInputTokens, totalOutputTokens);
         log.info("- Total duration (LLM calls): {}ms ({}s)", totalDuration, totalDuration / 1000.0);
     }
 
