@@ -74,13 +74,13 @@ public class LlmService {
         var prompt = template.apply(variables);
 
         var startTime = System.currentTimeMillis();
-        var chatResponse = model.chat(UserMessage.from(prompt.text()));
-        var durationMs = System.currentTimeMillis() - startTime;
-
-        var response = chatResponse.aiMessage().text();
-        var usage = chatResponse.tokenUsage();
-
         try {
+            var chatResponse = model.chat(UserMessage.from(prompt.text()));
+            var durationMs = System.currentTimeMillis() - startTime;
+
+            var response = chatResponse.aiMessage().text();
+            var usage = chatResponse.tokenUsage();
+
             var json = response.trim();
             // Remove markdown code blocks if present
             if (json.startsWith("```json")) {
@@ -113,18 +113,12 @@ public class LlmService {
 
             return result;
         } catch (Exception e) {
-            var safeResponse = response == null ? "" : response;
-            var truncatedResponse = safeResponse.length() > 2000 ? safeResponse.substring(0, 2000) + "...[truncated]" : safeResponse;
-            log.error("Error parsing LLM response for content='{}': {}", content, truncatedResponse, e);
+            var durationMs = System.currentTimeMillis() - startTime;
+            log.error("Error during LLM translation for content='{}': {}", content, e.getMessage(), e);
             var errorResult = new TranslationResult();
             errorResult.setContent(content);
-            errorResult.setComments("Error parsing LLM response.");
+            errorResult.setComments("Error during translation: " + e.getMessage());
             errorResult.setDurationMs(durationMs);
-            if (usage != null) {
-                errorResult.setInputTokens(usage.inputTokenCount());
-                errorResult.setOutputTokens(usage.outputTokenCount());
-                errorResult.setTotalTokens(usage.totalTokenCount());
-            }
             return errorResult;
         }
     }
