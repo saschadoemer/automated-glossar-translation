@@ -3,6 +3,7 @@ package de.saschadoemer.glossar.translation.service;
 import de.saschadoemer.glossar.translation.model.DictionaryEntry;
 import de.saschadoemer.glossar.translation.model.TranslationJob;
 import de.saschadoemer.glossar.translation.model.TranslationResult;
+import de.saschadoemer.glossar.translation.repository.TranslationJobRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.csv.CSVFormat;
@@ -35,17 +36,19 @@ public class GlossaryService {
 
     private final MasterDictionaryService masterDictionaryService;
     private final ExportService exportService;
-    private final Map<String, TranslationJob> jobs = new java.util.concurrent.ConcurrentHashMap<>();
+    private final TranslationJobRepository translationJobRepository;
 
     private final String openRouterApiKey;
     private final String openRouterModelName;
 
     public GlossaryService(MasterDictionaryService masterDictionaryService,
                            ExportService exportService,
+                           TranslationJobRepository translationJobRepository,
                            @Value("${translation.openrouter.api-key:}") String openRouterApiKey,
                            @Value("${translation.openrouter.model-name:}") String openRouterModelName) {
         this.masterDictionaryService = masterDictionaryService;
         this.exportService = exportService;
+        this.translationJobRepository = translationJobRepository;
         this.openRouterApiKey = openRouterApiKey;
         this.openRouterModelName = openRouterModelName;
     }
@@ -114,7 +117,7 @@ public class GlossaryService {
      */
     public void processAll(String jobId, java.io.InputStream inputStream, String targetLanguage, boolean fuzzy, Integer threshold, int waitTime) {
         var job = new TranslationJob(jobId, targetLanguage);
-        jobs.put(jobId, job);
+        translationJobRepository.save(job);
 
         log.info("Starting glossary data processing: jobId={}, targetLanguage={}, fuzzy={}, model={}, threshold={}, waitTime={}s",
                 jobId, targetLanguage, fuzzy, openRouterModelName, threshold != null ? threshold : "none", waitTime);
@@ -129,6 +132,7 @@ public class GlossaryService {
             log.error("Failed to initialize LLM service for jobId={}", jobId, e);
             job.setError("LLM initialization failed: " + e.getMessage());
             job.setCompleted(true);
+            translationJobRepository.save(job);
             return;
         }
 
@@ -137,6 +141,7 @@ public class GlossaryService {
             log.warn("Master dictionary is not set for jobId={}", jobId);
             job.setError("Master dictionary is not set.");
             job.setCompleted(true);
+            translationJobRepository.save(job);
             return;
         }
 
@@ -177,6 +182,7 @@ public class GlossaryService {
                 }
                 count++;
                 job.setProcessedItems(count);
+                translationJobRepository.save(job);
             }
         } catch (Exception e) {
             log.error("Error during glossary processing for jobId={}", jobId, e);
@@ -184,10 +190,12 @@ public class GlossaryService {
         }
 
         job.setCompleted(true);
+        translationJobRepository.save(job);
 
         if (!results.isEmpty()) {
             logProcessSummary(jobId, results);
             job.setResultData(exportService.exportToExcel(results));
+            translationJobRepository.save(job);
         } else {
             log.warn("No results to export for jobId={}", jobId);
         }
@@ -213,7 +221,7 @@ public class GlossaryService {
     }
 
     public TranslationJob getJobStatus(String jobId) {
-        return jobs.get(jobId);
+        return translationJobRepository.findById(jobId).orElse(null);
     }
 
 

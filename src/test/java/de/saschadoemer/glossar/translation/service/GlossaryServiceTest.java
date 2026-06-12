@@ -1,9 +1,11 @@
 package de.saschadoemer.glossar.translation.service;
 
+import de.saschadoemer.glossar.translation.repository.TranslationJobRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.util.Collections;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -33,10 +35,12 @@ class GlossaryServiceTest {
     }
     @Test
     void testGetJobStatus() {
-        MasterDictionaryService masterDictionaryService = new MasterDictionaryService();
+        MasterDictionaryService masterDictionaryService = mock(MasterDictionaryService.class);
         ExportService exportService = new ExportService();
-        GlossaryService service = new GlossaryService(masterDictionaryService, exportService, "test-openrouter-key", "your-model-identifier");
-        
+        TranslationJobRepository translationJobRepository = mock(TranslationJobRepository.class);
+        GlossaryService service = new GlossaryService(masterDictionaryService, exportService, translationJobRepository, "test-openrouter-key", "your-model-identifier");
+
+        when(translationJobRepository.findById("non-existent")).thenReturn(Optional.empty());
         assertNull(service.getJobStatus("non-existent"));
     }
 }

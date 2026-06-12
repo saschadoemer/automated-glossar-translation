@@ -1,18 +1,26 @@
 package de.saschadoemer.glossar.translation.model;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Lob;
+import jakarta.persistence.Table;
 
 /**
  * Model representing a translation job.
  */
 @Schema(description = "Represents a translation job and its current status")
+@Entity
+@Table(name = "translation_jobs")
 public class TranslationJob {
 
     @Schema(description = "Unique job identifier", example = "550e8400-e29b-41d4-a716-446655440000")
-    private final String id;
+    @Id
+    private String id;
 
     @Schema(description = "Target language code for the translation", example = "en-US")
-    private final String targetLanguage;
+    private String targetLanguage;
 
     @Schema(description = "Total number of items to process", example = "100")
     private int totalItems;
@@ -21,13 +29,21 @@ public class TranslationJob {
     private int processedItems;
 
     @Schema(hidden = true)
+    @Lob
+    @Column(columnDefinition = "BLOB")
     private byte[] resultData;
 
     @Schema(description = "Whether the job has completed", example = "false")
     private boolean completed;
 
     @Schema(description = "Error message if the job failed", example = "Invalid API key")
+    @Column(columnDefinition = "TEXT")
     private String error;
+
+    public TranslationJob() {
+        this.id = null;
+        this.targetLanguage = null;
+    }
 
     public TranslationJob(String id, String targetLanguage) {
         this.id = id;

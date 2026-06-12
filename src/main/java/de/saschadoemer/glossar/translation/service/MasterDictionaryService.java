@@ -1,6 +1,7 @@
 package de.saschadoemer.glossar.translation.service;
 
 import de.saschadoemer.glossar.translation.model.DictionaryEntry;
+import de.saschadoemer.glossar.translation.repository.DictionaryEntryRepository;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellType;
 import org.apache.poi.ss.usermodel.DateUtil;
@@ -28,7 +29,11 @@ public class MasterDictionaryService {
     private static final Logger log = LoggerFactory.getLogger(MasterDictionaryService.class);
     private static final Pattern LANGUAGE_CODE_PATTERN = Pattern.compile("^[a-z]{2}-[A-Z]{2}$");
 
-    private Map<String, List<DictionaryEntry>> masterDictionary = new HashMap<>();
+    private final DictionaryEntryRepository dictionaryEntryRepository;
+
+    public MasterDictionaryService(DictionaryEntryRepository dictionaryEntryRepository) {
+        this.dictionaryEntryRepository = dictionaryEntryRepository;
+    }
 
     /**
      * Set the master dictionary from an Excel file stream.
@@ -38,7 +43,7 @@ public class MasterDictionaryService {
      * @throws IOException If an error occurs during reading.
      */
     public List<String> setMasterDictionary(InputStream inputStream) throws IOException {
-        var newDictionary = new HashMap<String, List<DictionaryEntry>>();
+        var allEntries = new ArrayList<DictionaryEntry>();
         var importedLanguages = new HashSet<String>();
         try (var workbook = new XSSFWorkbook(inputStream)) {
             for (var s = 0; s < workbook.getNumberOfSheets(); s++) {
@@ -71,16 +76,14 @@ public class MasterDictionaryService {
                         }
 
                         var entry = new DictionaryEntry(identifier, german, translations);
-                        newDictionary.computeIfAbsent(identifier, _ -> new ArrayList<>()).add(entry);
-                        if (german != null && !german.isEmpty() && !german.equals(identifier)) {
-                            newDictionary.computeIfAbsent(german, _ -> new ArrayList<>()).add(entry);
-                        }
+                        allEntries.add(entry);
                     }
                 }
             }
         }
-        this.masterDictionary = newDictionary;
-        log.info("Uploaded and loaded {} entries into master dictionary.", masterDictionary.size());
+        dictionaryEntryRepository.deleteAll();
+        dictionaryEntryRepository.saveAll(allEntries);
+        log.info("Uploaded and saved {} entries into master dictionary.", allEntries.size());
         var result = new ArrayList<>(importedLanguages);
         Collections.sort(result);
         return result;
@@ -93,14 +96,23 @@ public class MasterDictionaryService {
      * @return A map of term/identifier to list of DictionaryEntry with the specific target language.
      */
     public Map<String, List<DictionaryEntry>> load(String targetLanguageCode) {
-        if (masterDictionary.isEmpty()) {
+        var allEntries = dictionaryEntryRepository.findAll();
+        if (allEntries.isEmpty()) {
             log.warn("Master dictionary is empty. No translations will be enriched with context.");
             return Collections.emptyMap();
         }
 
-        // Return a copy to avoid external modification of the master dictionary
         var result = new HashMap<String, List<DictionaryEntry>>();
-        masterDictionary.forEach((key, value) -> result.put(key, new ArrayList<>(value)));
+        for (var entry : allEntries) {
+            var identifier = entry.getIdentifier();
+            var german = entry.getGerman();
+            if (identifier != null && !identifier.isEmpty()) {
+                result.computeIfAbsent(identifier, _ -> new ArrayList<>()).add(entry);
+            }
+            if (german != null && !german.isEmpty() && !german.equals(identifier)) {
+                result.computeIfAbsent(german, _ -> new ArrayList<>()).add(entry);
+            }
+        }
 
         log.info("Providing {} entries from master dictionary for language: {}", result.size(), targetLanguageCode);
         return result;
@@ -112,7 +124,7 @@ public class MasterDictionaryService {
      * @return true if the dictionary is not empty.
      */
     public boolean isMasterDictionarySet() {
-        return !masterDictionary.isEmpty();
+        return dictionaryEntryRepository.count() > 0;
     }
 
     private String getCellValueAsString(Cell cell) {

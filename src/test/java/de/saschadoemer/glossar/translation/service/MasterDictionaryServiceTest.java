@@ -1,6 +1,7 @@
 package de.saschadoemer.glossar.translation.service;
 
 import de.saschadoemer.glossar.translation.model.DictionaryEntry;
+import de.saschadoemer.glossar.translation.repository.DictionaryEntryRepository;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
@@ -18,14 +19,18 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.Mockito.*;
 
 class MasterDictionaryServiceTest {
 
     private MasterDictionaryService masterDictionaryService;
+    private DictionaryEntryRepository dictionaryEntryRepository;
 
     @BeforeEach
     void setUp() {
-        masterDictionaryService = new MasterDictionaryService();
+        dictionaryEntryRepository = mock(DictionaryEntryRepository.class);
+        masterDictionaryService = new MasterDictionaryService(dictionaryEntryRepository);
     }
 
     @Test
@@ -50,10 +55,21 @@ class MasterDictionaryServiceTest {
         workbook.write(bos);
         workbook.close();
 
-        masterDictionaryService.setMasterDictionary(new ByteArrayInputStream(bos.toByteArray()));
+        byte[] bytes = bos.toByteArray();
+
+        // We need to stub the repository to return something when findAll is called
+        // In the service, setMasterDictionary calls saveAll, so we can capture it
+        doAnswer(invocation -> {
+            List<DictionaryEntry> entries = invocation.getArgument(0);
+            when(dictionaryEntryRepository.findAll()).thenReturn(entries);
+            when(dictionaryEntryRepository.count()).thenReturn((long) entries.size());
+            return entries;
+        }).when(dictionaryEntryRepository).saveAll(anyList());
+
+        masterDictionaryService.setMasterDictionary(new ByteArrayInputStream(bytes));
 
         assertTrue(masterDictionaryService.isMasterDictionarySet());
-        List<String> importedLanguages = masterDictionaryService.setMasterDictionary(new ByteArrayInputStream(bos.toByteArray()));
+        List<String> importedLanguages = masterDictionaryService.setMasterDictionary(new ByteArrayInputStream(bytes));
         assertTrue(importedLanguages.contains("en-US"));
         assertTrue(importedLanguages.contains("fr-FR"));
         assertTrue(importedLanguages.contains("de-DE"));
