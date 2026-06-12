@@ -169,6 +169,7 @@ public class GlossaryService {
                     }
                 }
 
+<<<<<<< HEAD
                 try {
                     var result = process(csvRecord, targetLanguage, dictionary, fuzzy, llmService);
                     if (result != null) {
@@ -184,6 +185,12 @@ public class GlossaryService {
                     }
                     errorResult.setComments("Unexpected error during processing: " + e.getMessage());
                     results.add(errorResult);
+=======
+                var result = process(csvRecord, targetLanguage, dictionary, fuzzy, llmService);
+                if (result != null) {
+                    results.add(result);
+                    // Update partial results
+>>>>>>> origin/main
                     job.setResultData(exportService.exportToExcel(results));
                 }
                 count++;
