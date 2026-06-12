@@ -37,7 +37,9 @@ public class ExportService {
                     "Translation without Context",
                     "Synonyms",
                     "Comments",
-                    "Cost",
+                    "Input Tokens",
+                    "Output Tokens",
+                    "Total Tokens",
                     "Duration (ms)"
             };
 
@@ -64,11 +66,17 @@ public class ExportService {
                 row.createCell(3).setCellValue(safeString(result.getTranslationWithoutContext()));
                 row.createCell(4).setCellValue(result.getSynonyms() != null ? String.join(", ", result.getSynonyms()) : "");
                 row.createCell(5).setCellValue(safeString(result.getComments()));
-                if (result.getCost() != null) {
-                    row.createCell(6).setCellValue(result.getCost());
+                if (result.getInputTokens() != null) {
+                    row.createCell(6).setCellValue(result.getInputTokens());
+                }
+                if (result.getOutputTokens() != null) {
+                    row.createCell(7).setCellValue(result.getOutputTokens());
+                }
+                if (result.getTotalTokens() != null) {
+                    row.createCell(8).setCellValue(result.getTotalTokens());
                 }
                 if (result.getDurationMs() != null) {
-                    row.createCell(7).setCellValue(result.getDurationMs());
+                    row.createCell(9).setCellValue(result.getDurationMs());
                 }
             }
 

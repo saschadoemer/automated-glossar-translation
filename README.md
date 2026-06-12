@@ -1,10 +1,10 @@
 # Context-Based Glossary Translation
 
-This project provides a Spring Boot-based service for translating glossary terms using Large Language Models (LLMs) like Google Gemini or OpenAI GPT-4. To ensure high-quality and consistent translations, the service uses a "Master Dictionary" to provide context and existing translations for similar terms.
+This project provides a Spring Boot-based service for translating glossary terms using Large Language Models (LLMs) via OpenRouter. To ensure high-quality and consistent translations, the service uses a "Master Dictionary" to provide context and existing translations for similar terms.
 
 ## Features
 
-- **LLM-Powered Translation**: Leverage Google Gemini or OpenAI for high-quality translations.
+- **LLM-Powered Translation**: Leverage various LLMs via OpenRouter for high-quality translations.
 - **Context Enrichment**: Uses a master dictionary to provide the LLM with relevant context and existing translations.
 - **Fuzzy Matching**: Optionally find similar terms in the master dictionary if an exact match is not found.
 - **Asynchronous Processing**: Translation jobs run in the background, allowing for large glossary processing.
@@ -14,7 +14,7 @@ This project provides a Spring Boot-based service for translating glossary terms
 
 - **Java 23**: The project uses the latest Java features.
 - **Maven**: For building and managing dependencies.
-- **API Keys**: You need an API key for either [Google Gemini](https://ai.google.dev/) or [OpenAI](https://platform.openai.com/).
+- **API Keys**: You need an API key for [OpenRouter](https://openrouter.ai/).
 
 ## Configuration
 
@@ -22,10 +22,8 @@ The application can be configured via environment variables or by modifying `src
 
 | Environment Variable | Description | Default |
 |----------------------|-------------|---------|
-| `GEMINI_API_KEY` | Your Google Gemini API key | -       |
-| `GEMINI_MODEL_NAME` | Gemini model to use | -       |
-| `OPENAI_API_KEY` | Your OpenAI API key | -       |
-| `OPENAI_MODEL_NAME` | OpenAI model to use | -       |
+| `OPENROUTER_API_KEY` | Your OpenRouter API key | -       |
+| `OPENROUTER_MODEL_NAME` | OpenRouter model to use | - |
 
 ## Getting Started
 
@@ -45,7 +43,7 @@ java -jar target/context-based-glossar-translation-1.0-SNAPSHOT.jar
 
 ```bash
 docker build -t glossar-translation .
-docker run -p 8080:8080 -e GEMINI_API_KEY=your_key glossar-translation
+docker run -p 8080:8080 -e OPENROUTER_API_KEY=your_key glossar-translation
 ```
 
 ---
@@ -58,7 +56,7 @@ To perform a successful translation, follow these steps:
 
 Before starting a translation, you must provide a master dictionary that serves as the context source.
 
-- **Endpoint**: `POST /translation/master-dictionary/upload`
+- **Endpoint**: `POST /api/translation/master-dictionary/upload`
 - **Payload**: `file` (Multipart file, Excel format)
 - **Description**: This file should contain existing translations and identifiers. See [Data Formats](#data-formats) for details.
 
@@ -66,11 +64,10 @@ Before starting a translation, you must provide a master dictionary that serves 
 
 Once the master dictionary is uploaded, you can start a translation job for your glossary.
 
-- **Endpoint**: `POST /translation`
+- **Endpoint**: `POST /api/translation/start`
 - **Parameters**:
     - `file`: The CSV file containing the terms to translate.
     - `targetLanguage`: The target language code (e.g., `en-US`, `fr-FR`).
-    - `llmType`: `gemini` (default) or `openai`.
     - `fuzzy`: `true`/`false` (default) to enable fuzzy matching in the master dictionary.
     - `waitTime`: Optional wait time (in seconds) between LLM calls to avoid rate limits.
 - **Response**: Returns a `jobId`.
@@ -79,7 +76,7 @@ Once the master dictionary is uploaded, you can start a translation job for your
 
 Monitor the progress and download the final Excel file once completed.
 
-- **Endpoint**: `GET /translation/result/{jobId}`
+- **Endpoint**: `GET /api/translation/result/{jobId}`
 - **Response**: 
     - `202 Accepted`: If the job is still in progress (returns JSON with progress details).
     - `200 OK`: If the job is finished (returns the generated Excel file).
