@@ -117,7 +117,7 @@ public class LlmService {
             log.error("Error during LLM translation for content='{}': {}", content, e.getMessage(), e);
             var errorResult = new TranslationResult();
             errorResult.setContent(content);
-            errorResult.setComments("Error during translation: " + e.getMessage());
+            errorResult.setComments("Error during translation: " + (e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName()));
             errorResult.setDurationMs(durationMs);
             return errorResult;
         }
