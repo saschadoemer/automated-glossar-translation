@@ -1,5 +1,6 @@
 package de.saschadoemer.glossar.translation.controller;
 
+import de.saschadoemer.glossar.translation.model.TranslationJob;
 import de.saschadoemer.glossar.translation.service.GlossaryService;
 import de.saschadoemer.glossar.translation.service.MasterDictionaryService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -25,6 +26,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -164,6 +166,63 @@ public class TranslationController {
                     "processedItems", job.getProcessedItems(),
                     "status", "IN_PROGRESS"
             ));
+        }
+    }
+
+    /**
+     * Lists all translation jobs that have been created.
+     *
+     * @return A list of translation jobs.
+     */
+    @GetMapping("/binaries")
+    @Operation(
+            summary = "List all translation jobs",
+            description = "Returns a list of all translation jobs and their current status.",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "List of translation jobs returned")
+            }
+    )
+    public ResponseEntity<List<TranslationJob>> listAllBinaries() {
+        log.info("Listing all translation jobs");
+        return ResponseEntity.ok(glossaryService.getAllJobs());
+    }
+
+    /**
+     * Downloads the final binary for a given translation job ID.
+     *
+     * @param jobId The unique identifier of the translation job.
+     * @return The Excel file binary.
+     */
+    @GetMapping("/binaries/{jobId}/download")
+    @Operation(
+            summary = "Download translation result binary",
+            description = "Returns the final Excel file for the given job identifier.",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Binary file returned"),
+                    @ApiResponse(responseCode = "404", description = "Job not found or binary not available"),
+                    @ApiResponse(responseCode = "500", description = "Internal server error")
+            }
+    )
+    public ResponseEntity<?> downloadBinary(
+            @Parameter(description = "The job identifier", required = true) @PathVariable String jobId) {
+        log.info("Downloading binary for jobId={}", jobId);
+        var job = glossaryService.getJobStatus(jobId);
+        if (job == null) {
+            log.warn("Job not found: jobId={}", jobId);
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Error: Job not found.");
+        }
+
+        if (job.getResultData() != null && job.getResultData().length > 0) {
+            log.info("Returning binary result for jobId={}", jobId);
+            var resource = new ByteArrayResource(job.getResultData());
+            var filename = "glossary-translation-" + jobId + "-" + job.getTargetLanguage().toLowerCase() + ".xlsx";
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
+                    .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                    .body(resource);
+        } else {
+            log.warn("Binary not available for jobId={}", jobId);
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Error: Binary not available for this job.");
         }
     }
 

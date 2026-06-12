@@ -234,6 +234,15 @@ public class GlossaryService {
         return translationJobRepository.findById(jobId).orElse(null);
     }
 
+    /**
+     * Retrieves all translation jobs from the repository.
+     *
+     * @return a list of all translation jobs.
+     */
+    public List<TranslationJob> getAllJobs() {
+        return translationJobRepository.findAll();
+    }
+
 
     private TranslationResult process(CSVRecord record, String targetLanguage, Map<String, List<DictionaryEntry>> dictionary, boolean fuzzy, LlmService llmService) {
         if (record.size() > 0) {
