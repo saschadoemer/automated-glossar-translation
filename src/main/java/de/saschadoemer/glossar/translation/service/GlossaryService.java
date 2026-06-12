@@ -169,10 +169,28 @@ public class GlossaryService {
                     }
                 }
 
+<<<<<<< HEAD
+                try {
+                    var result = process(csvRecord, targetLanguage, dictionary, fuzzy, llmService);
+                    if (result != null) {
+                        results.add(result);
+                        // Update partial results
+                        job.setResultData(exportService.exportToExcel(results));
+                    }
+                } catch (Exception e) {
+                    log.error("Unexpected error processing record for jobId={}: {}", jobId, csvRecord, e);
+                    var errorResult = new TranslationResult();
+                    if (csvRecord.size() > 0) {
+                        errorResult.setContent(csvRecord.get(0));
+                    }
+                    errorResult.setComments("Unexpected error during processing: " + e.getMessage());
+                    results.add(errorResult);
+=======
                 var result = process(csvRecord, targetLanguage, dictionary, fuzzy, llmService);
                 if (result != null) {
                     results.add(result);
                     // Update partial results
+>>>>>>> origin/main
                     job.setResultData(exportService.exportToExcel(results));
                 }
                 count++;
