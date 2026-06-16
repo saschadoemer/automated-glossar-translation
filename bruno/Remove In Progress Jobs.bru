@@ -1,0 +1,11 @@
+meta {
+  name: Remove In Progress Jobs
+  type: http
+  seq: 9
+}
+
+delete {
+  url: {{baseUrl}}/binaries/in-progress
+  body: none
+  auth: none
+}

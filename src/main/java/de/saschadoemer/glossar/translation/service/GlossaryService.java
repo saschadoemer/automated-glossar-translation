@@ -16,7 +16,10 @@ import org.springframework.context.event.ContextRefreshedEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -26,6 +29,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * Glossary service implementation.
@@ -117,7 +121,7 @@ public class GlossaryService {
      * @param waitTime       Wait time in seconds between records.
      */
     public void processAll(String jobId, java.io.InputStream inputStream, String targetLanguage, boolean fuzzy, Integer threshold, int waitTime) {
-        var job = new TranslationJob(jobId, targetLanguage, fuzzy, threshold, waitTime);
+        var job = translationJobRepository.findById(jobId).orElse(new TranslationJob(jobId, targetLanguage, fuzzy, threshold, waitTime));
         translationJobRepository.save(job);
 
         log.info("Starting glossary data processing: jobId={}, targetLanguage={}, fuzzy={}, model={}, threshold={}, waitTime={}s",
@@ -147,6 +151,10 @@ public class GlossaryService {
         }
 
         var results = new java.util.ArrayList<TranslationResult>();
+        if (job.getResultData() != null && job.getResultData().length > 0) {
+            results.addAll(exportService.readFromExcel(job.getResultData()));
+            log.info("Resuming job jobId={} from item {}", jobId, results.size());
+        }
 
         try (var reader = new InputStreamReader(inputStream, StandardCharsets.UTF_8);
              var csvParser = new CSVParser(reader, CSVFormat.DEFAULT)) {
@@ -159,6 +167,11 @@ public class GlossaryService {
             var count = 0;
             for (var csvRecord : records) {
                 if (csvRecord.size() == 0) continue;
+
+                if (count < results.size()) {
+                    count++;
+                    continue;
+                }
 
                 if (threshold != null && count >= threshold) {
                     log.info("Threshold reached ({} entries) for jobId={}. Stopping.", threshold, jobId);
@@ -265,6 +278,58 @@ public class GlossaryService {
      */
     public List<TranslationJob> getAllJobs() {
         return translationJobRepository.findAll();
+    }
+
+    /**
+     * Saves a translation job.
+     *
+     * @param job the job to save.
+     */
+    public void saveJob(TranslationJob job) {
+        translationJobRepository.save(job);
+    }
+
+    /**
+     * Resumes all translation jobs that are still in progress.
+     */
+    public void resumeAllInProgress() {
+        var incompleteJobs = translationJobRepository.findAllByCompleted(false);
+        if (incompleteJobs.isEmpty()) {
+            log.info("No incomplete translation jobs found to resume.");
+            return;
+        }
+
+        log.info("Found {} incomplete translation jobs to resume.", incompleteJobs.size());
+
+        for (var job : incompleteJobs) {
+            if (job.getInputData() != null && job.getInputData().length > 0) {
+                log.info("Resuming translation job: jobId={}", job.getId());
+                CompletableFuture.runAsync(() -> {
+                    try (var bais = new ByteArrayInputStream(job.getInputData())) {
+                        processAll(job.getId(), bais, job.getTargetLanguage(), job.isFuzzy(), job.getThreshold(), job.getWaitTime());
+                    } catch (IOException e) {
+                        log.error("Error resuming translation job: jobId={}", job.getId(), e);
+                    }
+                });
+            } else {
+                log.warn("Cannot resume job jobId={} because original input data is missing.", job.getId());
+            }
+        }
+    }
+
+    /**
+     * Removes all translation jobs that are still in progress.
+     */
+    @Transactional
+    public void removeAllInProgressJobs() {
+        var incompleteJobs = translationJobRepository.findAllByCompleted(false);
+        if (incompleteJobs.isEmpty()) {
+            log.info("No incomplete translation jobs found to remove.");
+            return;
+        }
+
+        log.info("Removing {} incomplete translation jobs.", incompleteJobs.size());
+        translationJobRepository.deleteAllByCompleted(false);
     }
 
     /**

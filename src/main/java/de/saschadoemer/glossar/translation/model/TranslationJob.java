@@ -33,6 +33,12 @@ public class TranslationJob {
     @JsonIgnore
     @Lob
     @Column(columnDefinition = "BLOB")
+    private byte[] inputData;
+
+    @Schema(hidden = true)
+    @JsonIgnore
+    @Lob
+    @Column(columnDefinition = "BLOB")
     private byte[] resultData;
 
     @Schema(hidden = true)
@@ -125,6 +131,22 @@ public class TranslationJob {
      */
     public void setProcessedItems(int processedItems) {
         this.processedItems = processedItems;
+    }
+
+    /**
+     * Returns the original input CSV data.
+     * @return the input data as byte array.
+     */
+    public byte[] getInputData() {
+        return inputData;
+    }
+
+    /**
+     * Sets the original input CSV data.
+     * @param inputData the input data as byte array.
+     */
+    public void setInputData(byte[] inputData) {
+        this.inputData = inputData;
     }
 
     /**

@@ -16,6 +16,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -93,6 +94,11 @@ public class TranslationController {
             var jobId = UUID.randomUUID().toString();
 
             log.info("Starting asynchronous translation job: jobId={}", jobId);
+
+            // Create job and save input data
+            var job = new TranslationJob(jobId, targetLanguage, fuzzy, threshold, waitTime);
+            job.setInputData(fileBytes);
+            glossaryService.saveJob(job);
 
             CompletableFuture.runAsync(() -> {
                 try (var bais = new ByteArrayInputStream(fileBytes)) {
@@ -185,6 +191,55 @@ public class TranslationController {
     public ResponseEntity<List<TranslationJob>> listAllBinaries() {
         log.info("Listing all translation jobs");
         return ResponseEntity.ok(glossaryService.getAllJobs());
+    }
+
+    /**
+     * Resumes all translation jobs that are still in progress.
+     *
+     * @return A response entity indicating that the resume process has started.
+     */
+    @PostMapping("/binaries/resume-all")
+    @Operation(
+            summary = "Resume all in-progress translations",
+            description = "Finds all translation jobs that are not completed and attempts to resume them from their last processed item.",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Resume process started successfully"),
+                    @ApiResponse(responseCode = "500", description = "Internal server error")
+            }
+    )
+    public ResponseEntity<Map<String, String>> resumeAllInProgress() {
+        log.info("Resume all in-progress translations request received");
+        try {
+            glossaryService.resumeAllInProgress();
+            return ResponseEntity.ok(Map.of("message", "Resume process started for all in-progress jobs."));
+        } catch (Exception e) {
+            log.error("Failed to resume in-progress translations", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+    /**
+     * Removes all translation jobs that are still in progress.
+     *
+     * @return A response entity indicating that the removal process has completed.
+     */
+    @DeleteMapping("/binaries/in-progress")
+    @Operation(
+            summary = "Remove all in-progress translations",
+            description = "Finds and removes all translation jobs that are not completed.",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "In-progress jobs removed successfully"),
+                    @ApiResponse(responseCode = "500", description = "Internal server error")
+            }
+    )
+    public ResponseEntity<Map<String, String>> removeAllInProgress() {
+        log.info("Remove all in-progress translations request received");
+        try {
+            glossaryService.removeAllInProgressJobs();
+            return ResponseEntity.ok(Map.of("message", "All in-progress translation jobs have been removed."));
+        } catch (Exception e) {
+            log.error("Failed to remove in-progress translations", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
     }
 
     /**

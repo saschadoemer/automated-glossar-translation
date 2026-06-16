@@ -59,4 +59,20 @@ class TranslationControllerTest {
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertEquals("attachment; filename=\"glossary-translation-123-en.xlsx\"", response.getHeaders().getFirst("Content-Disposition"));
     }
+
+    @Test
+    void testResumeAllInProgress() {
+        ResponseEntity<?> response = controller.resumeAllInProgress();
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        org.mockito.Mockito.verify(glossaryService).resumeAllInProgress();
+    }
+
+    @Test
+    void testRemoveAllInProgress() {
+        ResponseEntity<?> response = controller.removeAllInProgress();
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        org.mockito.Mockito.verify(glossaryService).removeAllInProgressJobs();
+    }
 }

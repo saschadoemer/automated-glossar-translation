@@ -62,4 +62,40 @@ class GlossaryServiceTest {
         assertNotNull(result);
         assertEquals(2, result.size());
     }
+
+    @Test
+    void testResumeAllInProgress() {
+        MasterDictionaryService masterDictionaryService = mock(MasterDictionaryService.class);
+        ExportService exportService = new ExportService();
+        TranslationJobRepository translationJobRepository = mock(TranslationJobRepository.class);
+        GlossaryService service = new GlossaryService(masterDictionaryService, exportService, translationJobRepository, "test-openrouter-key", "your-model-identifier");
+
+        TranslationJob job1 = new TranslationJob("1", "en");
+        job1.setInputData("term1\nterm2".getBytes());
+        job1.setCompleted(false);
+
+        when(translationJobRepository.findAllByCompleted(false)).thenReturn(List.of(job1));
+
+        service.resumeAllInProgress();
+
+        // Verification is a bit tricky since it's async, but we can verify the repository call
+        org.mockito.Mockito.verify(translationJobRepository).findAllByCompleted(false);
+    }
+
+    @Test
+    void testRemoveAllInProgressJobs() {
+        MasterDictionaryService masterDictionaryService = mock(MasterDictionaryService.class);
+        ExportService exportService = new ExportService();
+        TranslationJobRepository translationJobRepository = mock(TranslationJobRepository.class);
+        GlossaryService service = new GlossaryService(masterDictionaryService, exportService, translationJobRepository, "test-openrouter-key", "your-model-identifier");
+
+        TranslationJob job1 = new TranslationJob("1", "en");
+        job1.setCompleted(false);
+
+        when(translationJobRepository.findAllByCompleted(false)).thenReturn(List.of(job1));
+
+        service.removeAllInProgressJobs();
+
+        org.mockito.Mockito.verify(translationJobRepository).deleteAllByCompleted(false);
+    }
 }
