@@ -12,7 +12,13 @@ post {
 
 body:multipart-form {
   file: @file(/Users/sdo/Git/glossar-translation/local-data/glossar-master-data.csv)
-  targetLanguage: it-IT
-  fuzzy: false
-  waitTime: 3
+  targetLanguage: no-NO
+  fuzzy: true
+  waitTime: 1
+}
+
+script:post-response {
+  if (res.status === 200) {
+    bru.setVar("jobId", res.body.jobId);
+  }
 }

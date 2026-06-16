@@ -35,6 +35,9 @@ build/
 ### VS Code ###
 .vscode/
 
+### Persistence ###
+persistence/
+
 ### Mac OS ###
 .DS_Store
 

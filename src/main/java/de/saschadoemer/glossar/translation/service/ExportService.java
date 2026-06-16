@@ -1,11 +1,15 @@
 package de.saschadoemer.glossar.translation.service;
 
 import de.saschadoemer.glossar.translation.model.TranslationResult;
+import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
+import java.io.ByteArrayInputStream;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -94,11 +98,89 @@ public class ExportService {
     }
 
     /**
-     * Safely returns a string value, returning an empty string if the input is null.
+     * Reads translation results from an Excel byte array.
      *
-     * @param value The value to safely convert to a string.
-     * @return The string value or an empty string.
+     * @param excelData The Excel file as a byte array.
+     * @return The list of translation results.
      */
+    public List<TranslationResult> readFromExcel(byte[] excelData) {
+        log.info("Reading results from Excel data ({} bytes)", excelData.length);
+        var results = new ArrayList<TranslationResult>();
+
+        try (var bis = new ByteArrayInputStream(excelData);
+             var workbook = new XSSFWorkbook(bis)) {
+            var sheet = workbook.getSheetAt(0);
+            var rowIterator = sheet.iterator();
+
+            // Skip header row
+            if (rowIterator.hasNext()) {
+                rowIterator.next();
+            }
+
+            while (rowIterator.hasNext()) {
+                var row = rowIterator.next();
+                var result = new TranslationResult();
+
+                result.setContent(getCellValue(row, 0));
+                result.setTranslationWithContext(getCellValue(row, 1));
+                result.setConfidence(getCellDoubleValue(row, 2));
+                result.setTranslationWithoutContext(getCellValue(row, 3));
+                var synonymsText = getCellValue(row, 4);
+                if (!synonymsText.isEmpty()) {
+                    result.setSynonyms(Arrays.asList(synonymsText.split(", ")));
+                }
+                result.setComments(getCellValue(row, 5));
+                result.setInputTokens(getCellIntValue(row, 6));
+                result.setOutputTokens(getCellIntValue(row, 7));
+                result.setTotalTokens(getCellIntValue(row, 8));
+                result.setDurationMs(getCellLongValue(row, 9));
+
+                results.add(result);
+            }
+            log.info("Successfully read {} results from Excel.", results.size());
+        } catch (Exception e) {
+            log.error("Error reading from Excel", e);
+        }
+
+        return results;
+    }
+
+    private String getCellValue(Row row, int cellNum) {
+        var cell = row.getCell(cellNum);
+        if (cell == null) return "";
+        return cell.toString();
+    }
+
+    private Double getCellDoubleValue(Row row, int cellNum) {
+        var cell = row.getCell(cellNum);
+        if (cell == null) return null;
+        try {
+            return cell.getNumericCellValue();
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private Integer getCellIntValue(Row row, int cellNum) {
+        var cell = row.getCell(cellNum);
+        if (cell == null) return null;
+        try {
+            return (int) cell.getNumericCellValue();
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private Long getCellLongValue(Row row, int cellNum) {
+        var cell = row.getCell(cellNum);
+        if (cell == null) return null;
+        try {
+            return (long) cell.getNumericCellValue();
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     private String safeString(String value) {
         return value == null ? "" : value;
     }

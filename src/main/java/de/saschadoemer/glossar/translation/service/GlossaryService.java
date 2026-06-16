@@ -3,6 +3,7 @@ package de.saschadoemer.glossar.translation.service;
 import de.saschadoemer.glossar.translation.model.DictionaryEntry;
 import de.saschadoemer.glossar.translation.model.TranslationJob;
 import de.saschadoemer.glossar.translation.model.TranslationResult;
+import de.saschadoemer.glossar.translation.repository.TranslationJobRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.csv.CSVFormat;
@@ -13,6 +14,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.event.ContextRefreshedEvent;
 import org.springframework.context.event.EventListener;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.io.InputStreamReader;
@@ -35,17 +37,19 @@ public class GlossaryService {
 
     private final MasterDictionaryService masterDictionaryService;
     private final ExportService exportService;
-    private final Map<String, TranslationJob> jobs = new java.util.concurrent.ConcurrentHashMap<>();
+    private final TranslationJobRepository translationJobRepository;
 
     private final String openRouterApiKey;
     private final String openRouterModelName;
 
     public GlossaryService(MasterDictionaryService masterDictionaryService,
                            ExportService exportService,
+                           TranslationJobRepository translationJobRepository,
                            @Value("${translation.openrouter.api-key:}") String openRouterApiKey,
                            @Value("${translation.openrouter.model-name:}") String openRouterModelName) {
         this.masterDictionaryService = masterDictionaryService;
         this.exportService = exportService;
+        this.translationJobRepository = translationJobRepository;
         this.openRouterApiKey = openRouterApiKey;
         this.openRouterModelName = openRouterModelName;
     }
@@ -113,8 +117,8 @@ public class GlossaryService {
      * @param waitTime       Wait time in seconds between records.
      */
     public void processAll(String jobId, java.io.InputStream inputStream, String targetLanguage, boolean fuzzy, Integer threshold, int waitTime) {
-        var job = new TranslationJob(jobId, targetLanguage);
-        jobs.put(jobId, job);
+        var job = new TranslationJob(jobId, targetLanguage, fuzzy, threshold, waitTime);
+        translationJobRepository.save(job);
 
         log.info("Starting glossary data processing: jobId={}, targetLanguage={}, fuzzy={}, model={}, threshold={}, waitTime={}s",
                 jobId, targetLanguage, fuzzy, openRouterModelName, threshold != null ? threshold : "none", waitTime);
@@ -129,6 +133,7 @@ public class GlossaryService {
             log.error("Failed to initialize LLM service for jobId={}", jobId, e);
             job.setError("LLM initialization failed: " + e.getMessage());
             job.setCompleted(true);
+            translationJobRepository.save(job);
             return;
         }
 
@@ -137,6 +142,7 @@ public class GlossaryService {
             log.warn("Master dictionary is not set for jobId={}", jobId);
             job.setError("Master dictionary is not set.");
             job.setCompleted(true);
+            translationJobRepository.save(job);
             return;
         }
 
@@ -168,14 +174,15 @@ public class GlossaryService {
                         log.warn("Wait time interrupted for jobId={}", jobId, e);
                     }
                 }
-
-<<<<<<< HEAD
                 try {
-                    var result = process(csvRecord, targetLanguage, dictionary, fuzzy, llmService);
-                    if (result != null) {
-                        results.add(result);
-                        // Update partial results
-                        job.setResultData(exportService.exportToExcel(results));
+                    if (csvRecord.size() > 0) {
+                        var entry = csvRecord.get(0);
+                        var result = process(entry, targetLanguage, dictionary, fuzzy, llmService);
+                        if (result != null) {
+                            results.add(result);
+                            // Update partial results
+                            job.setResultData(exportService.exportToExcel(results));
+                        }
                     }
                 } catch (Exception e) {
                     log.error("Unexpected error processing record for jobId={}: {}", jobId, csvRecord, e);
@@ -185,16 +192,11 @@ public class GlossaryService {
                     }
                     errorResult.setComments("Unexpected error during processing: " + e.getMessage());
                     results.add(errorResult);
-=======
-                var result = process(csvRecord, targetLanguage, dictionary, fuzzy, llmService);
-                if (result != null) {
-                    results.add(result);
-                    // Update partial results
->>>>>>> origin/main
                     job.setResultData(exportService.exportToExcel(results));
                 }
                 count++;
                 job.setProcessedItems(count);
+                translationJobRepository.save(job);
             }
         } catch (Exception e) {
             log.error("Error during glossary processing for jobId={}", jobId, e);
@@ -202,10 +204,12 @@ public class GlossaryService {
         }
 
         job.setCompleted(true);
+        translationJobRepository.save(job);
 
         if (!results.isEmpty()) {
             logProcessSummary(jobId, results);
             job.setResultData(exportService.exportToExcel(results));
+            translationJobRepository.save(job);
         } else {
             log.warn("No results to export for jobId={}", jobId);
         }
@@ -231,31 +235,136 @@ public class GlossaryService {
     }
 
     public TranslationJob getJobStatus(String jobId) {
-        return jobs.get(jobId);
+        return translationJobRepository.findById(jobId).orElse(null);
+    }
+
+    /**
+     * Checks if a job contains any translation errors in its result.
+     *
+     * @param jobId The job identifier.
+     * @return true if errors are found, false otherwise.
+     */
+    public boolean jobContainsErrors(String jobId) {
+        var job = getJobStatus(jobId);
+        if (job == null || job.getResultData() == null) return false;
+        if (job.getError() != null) return true;
+
+        var results = exportService.readFromExcel(job.getResultData());
+        return results.stream().anyMatch(r ->
+                r.getComments() != null && (
+                        r.getComments().contains("Error") ||
+                                r.getComments().contains("Unexpected error")
+                )
+        );
+    }
+
+    /**
+     * Retrieves all translation jobs from the repository.
+     *
+     * @return a list of all translation jobs.
+     */
+    public List<TranslationJob> getAllJobs() {
+        return translationJobRepository.findAll();
+    }
+
+    /**
+     * Restarts the translation process for a job that contains errors.
+     * All rows within the excel result will be tried again.
+     *
+     * @param jobId The identifier of the job to restart.
+     */
+    @Async
+    public void restartJobWithErrors(String jobId) {
+        var job = translationJobRepository.findById(jobId).orElse(null);
+        if (job == null) {
+            log.error("Restart failed: Job not found: jobId={}", jobId);
+            return;
+        }
+
+        if (job.getResultData() == null || job.getResultData().length == 0) {
+            log.error("Restart failed: No result data available for jobId={}", jobId);
+            return;
+        }
+
+        var results = exportService.readFromExcel(job.getResultData());
+        if (results.isEmpty()) {
+            log.error("Restart failed: No results found in Excel for jobId={}", jobId);
+            return;
+        }
+
+        log.info("Restarting translation for jobId={} ({} rows)", jobId, results.size());
+
+        LlmService llmService;
+        try {
+            if (openRouterApiKey == null || openRouterApiKey.isEmpty()) {
+                throw new IllegalStateException("OpenRouter API key not configured.");
+            }
+            llmService = new LlmService(openRouterApiKey, openRouterModelName);
+        } catch (Exception e) {
+            log.error("Failed to initialize LLM service for restart of jobId={}", jobId, e);
+            return;
+        }
+
+        var dictionary = masterDictionaryService.load(job.getTargetLanguage());
+        var correctedResults = new java.util.ArrayList<TranslationResult>();
+
+        var count = 0;
+        for (var originalResult : results) {
+            if (count > 0 && job.getWaitTime() > 0) {
+                try {
+                    Thread.sleep(job.getWaitTime() * 1000L);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    log.warn("Wait time interrupted during restart for jobId={}", jobId, e);
+                }
+            }
+
+            try {
+                var entry = originalResult.getContent();
+                if (entry != null && !entry.isEmpty()) {
+                    var newResult = process(entry, job.getTargetLanguage(), dictionary, job.isFuzzy(), llmService);
+                    if (newResult != null) {
+                        correctedResults.add(newResult);
+                    } else {
+                        correctedResults.add(originalResult);
+                    }
+                } else {
+                    correctedResults.add(originalResult);
+                }
+            } catch (Exception e) {
+                log.error("Error during restart of entry for jobId={}", jobId, e);
+                correctedResults.add(originalResult);
+            }
+            count++;
+            // We don't update processedItems here because it's a correction phase
+            // But we could if we wanted to show progress for correction.
+        }
+
+        if (!correctedResults.isEmpty()) {
+            job.setCorrectedResultData(exportService.exportToExcel(correctedResults));
+            translationJobRepository.save(job);
+            log.info("Restarted translation finished for jobId={}. Corrected file saved.", jobId);
+        }
     }
 
 
-    private TranslationResult process(CSVRecord record, String targetLanguage, Map<String, List<DictionaryEntry>> dictionary, boolean fuzzy, LlmService llmService) {
-        if (record.size() > 0) {
-            var entry = record.get(0);
-            log.debug("[{}] Processing entry: {}", targetLanguage, entry);
+    private TranslationResult process(String entry, String targetLanguage, Map<String, List<DictionaryEntry>> dictionary, boolean fuzzy, LlmService llmService) {
+        log.debug("[{}] Processing entry: {}", targetLanguage, entry);
 
-            List<DictionaryEntry> matchingEntries;
-            if (fuzzy) {
-                matchingEntries = findFuzzyMatches(entry, dictionary);
-            } else {
-                matchingEntries = dictionary.get(entry);
-            }
-
-            if (matchingEntries != null && !matchingEntries.isEmpty()) {
-                log.info("[{}] Gathered context for '{}': {} matches found.", targetLanguage, entry, matchingEntries.size());
-            } else {
-                log.warn("[{}] No matching entries found for: {}.", targetLanguage, entry);
-            }
-
-            return llmService.translate(entry, matchingEntries, targetLanguage);
+        List<DictionaryEntry> matchingEntries;
+        if (fuzzy) {
+            matchingEntries = findFuzzyMatches(entry, dictionary);
+        } else {
+            matchingEntries = dictionary.get(entry);
         }
-        return null;
+
+        if (matchingEntries != null && !matchingEntries.isEmpty()) {
+            log.info("[{}] Gathered context for '{}': {} matches found.", targetLanguage, entry, matchingEntries.size());
+        } else {
+            log.warn("[{}] No matching entries found for: {}.", targetLanguage, entry);
+        }
+
+        return llmService.translate(entry, matchingEntries, targetLanguage);
     }
 
     private List<DictionaryEntry> findFuzzyMatches(String entry, Map<String, List<DictionaryEntry>> dictionary) {

@@ -1,5 +1,6 @@
 package de.saschadoemer.glossar.translation.controller;
 
+import de.saschadoemer.glossar.translation.model.TranslationJob;
 import de.saschadoemer.glossar.translation.service.GlossaryService;
 import de.saschadoemer.glossar.translation.service.MasterDictionaryService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -25,6 +26,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -164,6 +166,141 @@ public class TranslationController {
                     "processedItems", job.getProcessedItems(),
                     "status", "IN_PROGRESS"
             ));
+        }
+    }
+
+    /**
+     * Lists all translation jobs that have been created.
+     *
+     * @return A list of translation jobs.
+     */
+    @GetMapping("/binaries")
+    @Operation(
+            summary = "List all translation jobs",
+            description = "Returns a list of all translation jobs and their current status.",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "List of translation jobs returned")
+            }
+    )
+    public ResponseEntity<List<TranslationJob>> listAllBinaries() {
+        log.info("Listing all translation jobs");
+        return ResponseEntity.ok(glossaryService.getAllJobs());
+    }
+
+    /**
+     * Downloads the final binary for a given translation job ID.
+     *
+     * @param jobId The unique identifier of the translation job.
+     * @return The Excel file binary.
+     */
+    @GetMapping("/binaries/{jobId}/download")
+    @Operation(
+            summary = "Download translation result binary",
+            description = "Returns the final Excel file for the given job identifier.",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Binary file returned"),
+                    @ApiResponse(responseCode = "404", description = "Job not found or binary not available"),
+                    @ApiResponse(responseCode = "500", description = "Internal server error")
+            }
+    )
+    public ResponseEntity<?> downloadBinary(
+            @Parameter(description = "The job identifier", required = true) @PathVariable String jobId) {
+        log.info("Downloading binary for jobId={}", jobId);
+        var job = glossaryService.getJobStatus(jobId);
+        if (job == null) {
+            log.warn("Job not found: jobId={}", jobId);
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Error: Job not found.");
+        }
+
+        if (job.getResultData() != null && job.getResultData().length > 0) {
+            log.info("Returning binary result for jobId={}", jobId);
+            var resource = new ByteArrayResource(job.getResultData());
+            var filename = "glossary-translation-" + jobId + "-" + job.getTargetLanguage().toLowerCase() + ".xlsx";
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
+                    .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                    .body(resource);
+        } else {
+            log.warn("Binary not available for jobId={}", jobId);
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Error: Binary not available for this job.");
+        }
+    }
+
+    /**
+     * Restarts the translation process for a job that contains errors.
+     * All rows within the original excel result will be tried again.
+     *
+     * @param jobId The unique identifier of the translation job.
+     * @return A response entity indicating the process has started.
+     */
+    @PostMapping("/binaries/{jobId}/restart-errors")
+    @Operation(
+            summary = "Restart translation for job with errors",
+            description = "Identifies jobs with errors and restarts the translation for all rows. The result will be stored in a separate field.",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Restart process triggered",
+                            content = @Content(schema = @Schema(example = "{\"message\": \"Restart process triggered\", \"jobId\": \"550e8400-e29b-41d4-a716-446655440000\"}"))),
+                    @ApiResponse(responseCode = "400", description = "Job does not contain errors"),
+                    @ApiResponse(responseCode = "404", description = "Job not found"),
+                    @ApiResponse(responseCode = "500", description = "Internal server error")
+            }
+    )
+    public ResponseEntity<?> restartErrors(
+            @Parameter(description = "The job identifier", required = true) @PathVariable String jobId) {
+        log.info("Restart errors requested for jobId={}", jobId);
+        var job = glossaryService.getJobStatus(jobId);
+        if (job == null) {
+            log.warn("Job not found: jobId={}", jobId);
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Error: Job not found.");
+        }
+
+        if (!glossaryService.jobContainsErrors(jobId)) {
+            log.warn("Restart errors rejected: Job does not contain errors: jobId={}", jobId);
+            return ResponseEntity.badRequest().body("Error: Job does not contain errors.");
+        }
+
+        log.info("Starting asynchronous restart for jobId={}", jobId);
+        glossaryService.restartJobWithErrors(jobId);
+
+        return ResponseEntity.ok(Map.of("message", "Restart process triggered", "jobId", jobId));
+    }
+
+    /**
+     * Downloads the corrected binary for a given translation job ID.
+     *
+     * @param jobId The unique identifier of the translation job.
+     * @return The corrected Excel file binary.
+     */
+    @GetMapping("/binaries/{jobId}/download-corrected")
+    @Operation(
+            summary = "Download corrected translation result binary",
+            description = "Returns the corrected Excel file for the given job identifier if available.",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Binary file returned"),
+                    @ApiResponse(responseCode = "404", description = "Job not found or corrected binary not available"),
+                    @ApiResponse(responseCode = "500", description = "Internal server error")
+            }
+    )
+    public ResponseEntity<?> downloadCorrectedBinary(
+            @Parameter(description = "The job identifier", required = true) @PathVariable String jobId) {
+        log.info("Downloading corrected binary for jobId={}", jobId);
+        var job = glossaryService.getJobStatus(jobId);
+        if (job == null) {
+            log.warn("Job not found: jobId={}", jobId);
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Error: Job not found.");
+        }
+
+        if (job.getCorrectedResultData() != null && job.getCorrectedResultData().length > 0) {
+            log.info("Returning corrected binary result for jobId={}", jobId);
+            var resource = new ByteArrayResource(job.getCorrectedResultData());
+            var filename = "glossary-translation-corrected-" + jobId + "-" + job.getTargetLanguage().toLowerCase() + ".xlsx";
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
+                    .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                    .body(resource);
+        } else {
+            log.warn("Corrected binary not available for jobId={}", jobId);
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Error: Corrected binary not available for this job.");
         }
     }
 
