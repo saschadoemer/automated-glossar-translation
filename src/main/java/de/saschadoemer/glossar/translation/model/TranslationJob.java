@@ -35,8 +35,25 @@ public class TranslationJob {
     @Column(columnDefinition = "BLOB")
     private byte[] resultData;
 
+    @Schema(hidden = true)
+    @JsonIgnore
+    @Lob
+    @Column(columnDefinition = "BLOB")
+    private byte[] correctedResultData;
+
     @Schema(description = "Whether the job has completed", example = "false")
     private boolean completed;
+
+    @Schema(description = "Whether fuzzy matching was used", example = "false")
+    @Column(nullable = false, columnDefinition = "boolean default false")
+    private boolean fuzzy = false;
+
+    @Schema(description = "Maximum number of records to process", example = "100")
+    private Integer threshold;
+
+    @Schema(description = "Wait time in seconds between records", example = "3")
+    @Column(nullable = false, columnDefinition = "int default 3")
+    private int waitTime = 3;
 
     @Schema(description = "Error message if the job failed", example = "Invalid API key")
     @Column(columnDefinition = "TEXT")
@@ -50,6 +67,15 @@ public class TranslationJob {
     public TranslationJob(String id, String targetLanguage) {
         this.id = id;
         this.targetLanguage = targetLanguage;
+        this.completed = false;
+    }
+
+    public TranslationJob(String id, String targetLanguage, boolean fuzzy, Integer threshold, int waitTime) {
+        this.id = id;
+        this.targetLanguage = targetLanguage;
+        this.fuzzy = fuzzy;
+        this.threshold = threshold;
+        this.waitTime = waitTime;
         this.completed = false;
     }
 
@@ -118,6 +144,22 @@ public class TranslationJob {
     }
 
     /**
+     * Returns the corrected Excel result data.
+     * @return the byte array of the corrected Excel file.
+     */
+    public byte[] getCorrectedResultData() {
+        return correctedResultData;
+    }
+
+    /**
+     * Sets the corrected Excel result data.
+     * @param correctedResultData the byte array of the corrected Excel file.
+     */
+    public void setCorrectedResultData(byte[] correctedResultData) {
+        this.correctedResultData = correctedResultData;
+    }
+
+    /**
      * Returns whether the job has completed.
      * @return true if completed, false otherwise.
      */
@@ -131,6 +173,54 @@ public class TranslationJob {
      */
     public void setCompleted(boolean completed) {
         this.completed = completed;
+    }
+
+    /**
+     * Returns whether fuzzy matching was used.
+     * @return true if fuzzy matching was used.
+     */
+    public boolean isFuzzy() {
+        return fuzzy;
+    }
+
+    /**
+     * Sets whether fuzzy matching was used.
+     * @param fuzzy fuzzy matching status.
+     */
+    public void setFuzzy(boolean fuzzy) {
+        this.fuzzy = fuzzy;
+    }
+
+    /**
+     * Returns the threshold for the number of records to process.
+     * @return the threshold.
+     */
+    public Integer getThreshold() {
+        return threshold;
+    }
+
+    /**
+     * Sets the threshold for the number of records to process.
+     * @param threshold the threshold.
+     */
+    public void setThreshold(Integer threshold) {
+        this.threshold = threshold;
+    }
+
+    /**
+     * Returns the wait time in seconds between records.
+     * @return the wait time.
+     */
+    public int getWaitTime() {
+        return waitTime;
+    }
+
+    /**
+     * Sets the wait time in seconds between records.
+     * @param waitTime the wait time.
+     */
+    public void setWaitTime(int waitTime) {
+        this.waitTime = waitTime;
     }
 
     /**

@@ -1,11 +1,11 @@
 meta {
-  name: Get Translation Result
+  name: Download Binary
   type: http
-  seq: 5
+  seq: 7
 }
 
 get {
-  url: {{baseUrl}}/result/:jobId
+  url: {{baseUrl}}/binaries/:jobId/download
   body: none
   auth: none
 }
